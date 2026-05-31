@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { MailIcon, LockIcon, EyeIcon, UserSilhouetteIcon, PhoneIcon, MapMarkerIcon } from './Icons';
+import { API_BASE_URL } from '../config';
 
 function Register({ setView, showToast }) {
   const [email, setEmail] = useState('');
@@ -70,7 +71,7 @@ function Register({ setView, showToast }) {
 
     setLoading(true);
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/register', { 
+      const response = await axios.post(`${API_BASE_URL}/api/auth/register`, { 
         email: emailTrim, 
         password,
         fullName: nameTrim,

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
 // 6 default course videos reference list matching catalog
 const allCourseVideos = [
@@ -17,7 +18,7 @@ function AdminPanel({ showToast }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get('http://localhost:5000/api/auth/admin/stats');
+      const response = await axios.get(`${API_BASE_URL}/api/auth/admin/stats`);
       if (response.data.success) {
         setStats(response.data);
       } else {

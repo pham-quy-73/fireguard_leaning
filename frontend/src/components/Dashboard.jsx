@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import Classroom from './Classroom';
 import AdminPanel from './AdminPanel';
+import { API_BASE_URL } from '../config';
 import {
   PlayMenuIcon,
   GridDashboardIcon,
@@ -86,7 +87,7 @@ function Dashboard({ user, handleLogout, showToast }) {
 
       setFetching(true);
       try {
-        const response = await axios.get(`http://localhost:5000/api/auth/profile/${activeId}`);
+        const response = await axios.get(`${API_BASE_URL}/api/auth/profile/${activeId}`);
         if (response.data.success) {
           setDbUser(response.data.user);
           setWatchedIds(response.data.user.watchedVideos || []);
@@ -108,7 +109,7 @@ function Dashboard({ user, handleLogout, showToast }) {
   useEffect(() => {
     const activeId = user?.id || user?._id;
     if (dashboardView === 'profile' && activeId) {
-      axios.get(`http://localhost:5000/api/auth/profile/${activeId}`)
+      axios.get(`${API_BASE_URL}/api/auth/profile/${activeId}`)
         .then(response => {
           if (response.data.success) {
             setDbUser(response.data.user);
@@ -131,7 +132,7 @@ function Dashboard({ user, handleLogout, showToast }) {
     if (!activeId) return;
 
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/watch', {
+      const response = await axios.post(`${API_BASE_URL}/api/auth/watch`, {
         userId: activeId,
         videoId: Number(videoId)
       });

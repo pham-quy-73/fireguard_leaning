@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { MailIcon, LockIcon, EyeIcon, FiretruckIcon } from './Icons';
+import { API_BASE_URL } from '../config';
 
 function Login({ setView, setUser, showToast }) {
   const [email, setEmail] = useState('');
@@ -18,7 +19,7 @@ function Login({ setView, setUser, showToast }) {
     
     setLoading(true);
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/login', { email, password });
+      const response = await axios.post(`${API_BASE_URL}/api/auth/login`, { email, password });
       
       if (response.data.success) {
         showToast(response.data.message, 'success');

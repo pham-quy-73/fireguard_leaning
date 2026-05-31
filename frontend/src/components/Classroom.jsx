@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
 // Ngân hàng 5 câu hỏi tình thế khẩn cấp và kiến thức cốt lõi PCCC
 const PCCC_QUIZ_POOL = [
@@ -65,7 +66,7 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
     if (!video?.id) return;
     setLoadingComments(true);
     try {
-      const response = await axios.get(`http://localhost:5000/api/auth/comments/${video.id}`);
+      const response = await axios.get(`${API_BASE_URL}/api/auth/comments/${video.id}`);
       if (response.data.success) {
         setComments(response.data.comments || []);
       }
@@ -104,7 +105,7 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
       const userName = user?.fullName || 'Học viên ẩn danh';
       const firstChar = userName.charAt(0).toUpperCase();
 
-      const response = await axios.post('http://localhost:5000/api/auth/comments', {
+      const response = await axios.post(`${API_BASE_URL}/api/auth/comments`, {
         videoId: video.id,
         userName,
         avatarLetter: firstChar,

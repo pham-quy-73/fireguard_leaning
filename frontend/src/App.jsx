@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import './App.css';
 import { FiretruckIcon } from './components/Icons';
+import { API_BASE_URL } from './config';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard, { allVideos } from './components/Dashboard';
@@ -11,6 +13,17 @@ function App() {
   
   // Notification Toast state
   const [notification, setNotification] = useState(null);
+
+  // Real student count from DB (for the login banner badge)
+  const [totalStudents, setTotalStudents] = useState(null);
+
+  useEffect(() => {
+    axios.get(`${API_BASE_URL}/api/auth/admin/stats`)
+      .then((res) => {
+        if (res.data?.success) setTotalStudents(res.data.totalStudents);
+      })
+      .catch(() => { /* ignore: badge falls back gracefully */ });
+  }, []);
 
   const showToast = (message, type = 'success') => {
     setNotification({ message, type });
@@ -45,7 +58,9 @@ function App() {
         <div className="badge-row">
           <div className="banner-badge">
             <span className="badge-dot"></span>
-            Tham gia cùng +5000 học viên
+            {totalStudents !== null
+              ? `Tham gia cùng ${totalStudents} học viên`
+              : 'Tham gia cùng cộng đồng học viên'}
           </div>
         </div>
         <h2 className="banner-heading">Bảo vệ bản thân và gia đình qua kiến thức chuẩn xác</h2>

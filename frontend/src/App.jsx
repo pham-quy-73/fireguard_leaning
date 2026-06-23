@@ -3,7 +3,7 @@ import './App.css';
 import { FiretruckIcon } from './components/Icons';
 import Login from './components/Login';
 import Register from './components/Register';
-import Dashboard from './components/Dashboard';
+import Dashboard, { allVideos } from './components/Dashboard';
 
 function App() {
   const [view, setView] = useState('login'); // 'login' | 'register' | 'videos_dashboard' | 'profile_dashboard'
@@ -55,7 +55,7 @@ function App() {
         
         <div className="stats-row">
           <div className="stat-item">
-            <span className="stat-value">100+</span>
+            <span className="stat-value">{allVideos.length}</span>
             <span className="stat-label">Bài học video</span>
           </div>
           <div className="stat-divider"></div>

@@ -1,5 +1,5 @@
 /* Reset / Global Custom properties */
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&display=swap');
 
 :root {
   --primary-red: #c2182c;
@@ -9,7 +9,7 @@
   --bg-dark: #1e293b;
   --text-dark: #1e293b;
   --text-muted: #64748b;
-  --font-main: 'Outfit', sans-serif;
+  --font-main: 'Be Vietnam Pro', sans-serif;
 }
 
 * {
@@ -720,15 +720,15 @@ body {
 .brand-header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   margin-bottom: 25px;
 }
 
 .brand-icon-box {
-  width: 40px;
-  height: 40px;
+  width: 64px;
+  height: 64px;
   background-color: var(--primary-red);
-  border-radius: 8px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -736,8 +736,9 @@ body {
 }
 
 .brand-name {
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
   color: var(--primary-red);
 }
 

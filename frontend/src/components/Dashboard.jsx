@@ -23,7 +23,7 @@ import {
 } from './Icons';
 
 // MOCK VIDEOS
-const allVideos = [
+export const allVideos = [
   {
     id: 1,
     title: "Mô phỏng tình huống cháy chung cư mini và kỹ năng thoát nạn an toàn.",

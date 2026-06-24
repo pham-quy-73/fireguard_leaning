@@ -5,6 +5,7 @@ const {
   loginUser, 
   getUserProfile, 
   watchVideo,
+  saveProgress,
   getVideoComments,
   createVideoComment,
   getAdminStats,
@@ -21,6 +22,7 @@ router.post('/login', loginUser);
 router.get('/profile/:id', getUserProfile);
 router.post('/profile/update', updateUserProfile);
 router.post('/watch', watchVideo);
+router.post('/progress', saveProgress);
 
 // Video CRUD routes
 router.get('/videos', getVideos);

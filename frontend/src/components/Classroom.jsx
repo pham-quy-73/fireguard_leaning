@@ -46,7 +46,7 @@ const PCCC_QUIZ_POOL = [
   }
 ];
 
-function Classroom({ video, user, onBack, showToast, onComplete }) {
+function Classroom({ video, user, onBack, showToast, onComplete, onProgressUpdate }) {
   const [activeTab, setActiveTab] = useState('desc'); // 'desc' | 'reviews' | 'docs'
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState('');
@@ -92,6 +92,61 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
     setQuizMessage('');
     setShowQuiz(false);
   }, [video]);
+
+  // Lắng nghe sự kiện chuyển tiếp xAPI từ h5p-player iframe
+  useEffect(() => {
+    const handleH5PMessage = (event) => {
+      if (event.data && event.data.type === 'H5P_XAPI') {
+        const { statement, percentage, state } = event.data;
+        const verbId = statement?.verb?.id || '';
+        
+        console.log("Nhận xAPI từ H5P Player:", statement);
+
+        // Đánh dấu hoàn thành khi có sự kiện completed
+        if (verbId.endsWith('/completed') || verbId === 'completed') {
+          showToast('Chúc mừng! Bạn đã hoàn thành toàn bộ kịch bản bài học.', 'success');
+          if (onComplete && video?.id) {
+            onComplete(video.id);
+          }
+        }
+        
+        // Hiện toast nhỏ khi học viên trả lời câu hỏi tương tác trong video
+        if (verbId.endsWith('/answered') || verbId === 'answered') {
+          showToast('Ghi nhận tiến độ: Bạn đã trả lời một tương tác trong bài học!', 'info');
+        }
+
+        // Tự động lưu tiến độ chi tiết (percentage và state) vào Database
+        const activeUserId = user?.id || user?._id;
+        if (activeUserId && video?.id) {
+          const numericPercentage = Number(percentage) || 0;
+          const currentSavedPercentage = user?.h5pProgress?.[video.id]?.percentage || 0;
+          
+          if (numericPercentage > currentSavedPercentage || state) {
+            axios.post(`${API_BASE_URL}/api/auth/progress`, {
+              userId: activeUserId,
+              videoId: video.id,
+              percentage: Math.max(numericPercentage, currentSavedPercentage),
+              state: state
+            }).then(response => {
+              if (response.data.success) {
+                console.log("Đã lưu tiến độ học tập chi tiết vào MongoDB:", numericPercentage);
+                if (onProgressUpdate) {
+                  onProgressUpdate(response.data.h5pProgress, response.data.watchedVideos);
+                }
+              }
+            }).catch(err => {
+              console.error("Lỗi cập nhật tiến trình vào DB:", err);
+            });
+          }
+        }
+      }
+    };
+
+    window.addEventListener('message', handleH5PMessage);
+    return () => {
+      window.removeEventListener('message', handleH5PMessage);
+    };
+  }, [video, user, onComplete, onProgressUpdate, showToast]);
 
   const handleSendComment = async (e) => {
     e.preventDefault();
@@ -339,9 +394,17 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
               </form>
             </div>
           ) : (
-            video.videoUrl && (video.videoUrl.startsWith('http') || video.videoUrl.includes('/embed')) ? (
+            video.videoUrl && (video.videoUrl.startsWith('http') || video.videoUrl.includes('/embed') || video.videoUrl.includes('h5p-player.html')) ? (
               <iframe
-                src={video.videoUrl}
+                src={(() => {
+                  if (video.videoUrl.includes('h5p-player.html')) {
+                    const savedState = user?.h5pProgress?.[video.id]?.state;
+                    if (savedState) {
+                      return `${video.videoUrl}&state=${encodeURIComponent(savedState)}`;
+                    }
+                  }
+                  return video.videoUrl;
+                })()}
                 className="h5p-iframe"
                 allow="autoplay *; geolocation *; microphone *; camera *; midi *; encrypted-media *"
                 title={video.title}

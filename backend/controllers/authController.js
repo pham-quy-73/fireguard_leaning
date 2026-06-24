@@ -83,7 +83,8 @@ exports.registerUser = async (req, res) => {
         phone: newUser.phone,
         address: newUser.address,
         role: newUser.role,
-        watchedVideos: []
+        watchedVideos: [],
+        h5pProgress: {}
       } 
     });
   } catch (error) {
@@ -122,7 +123,8 @@ exports.loginUser = async (req, res) => {
         phone: user.phone || '',
         address: user.address || '',
         role: user.role || (user.email === 'admin@fireguard.com' ? 'admin' : 'student'),
-        watchedVideos: user.watchedVideos || []
+        watchedVideos: user.watchedVideos || [],
+        h5pProgress: user.h5pProgress || {}
       } 
     });
   } catch (error) {
@@ -150,7 +152,8 @@ exports.getUserProfile = async (req, res) => {
         phone: user.phone || '',
         address: user.address || '',
         role: user.role || (user.email === 'admin@fireguard.com' ? 'admin' : 'student'),
-        watchedVideos: user.watchedVideos || []
+        watchedVideos: user.watchedVideos || [],
+        h5pProgress: user.h5pProgress || {}
       }
     });
   } catch (error) {
@@ -188,6 +191,49 @@ exports.watchVideo = async (req, res) => {
     });
   } catch (error) {
     console.error("Lỗi ghi nhận xem video:", error);
+    res.status(500).json({ success: false, message: "Không thể lưu tiến trình vào Database!" });
+  }
+};
+
+// @desc    Save/Update H5P progress and state for a user
+// @route   POST /api/auth/progress
+// @access  Public
+exports.saveProgress = async (req, res) => {
+  try {
+    const { userId, videoId, percentage, state } = req.body;
+    
+    if (!userId || videoId === undefined) {
+      return res.status(400).json({ success: false, message: "Thiếu dữ liệu Người dùng hoặc Video ID!" });
+    }
+
+    const updatePath = `h5pProgress.${videoId}`;
+    const updateQuery = {};
+    updateQuery[updatePath] = {
+      percentage: Number(percentage) || 0,
+      state: state || {}
+    };
+
+    const updateOps = { $set: updateQuery };
+    
+    // Automatically add to watchedVideos if progress is 100%
+    if (Number(percentage) === 100) {
+      updateOps.$addToSet = { watchedVideos: Number(videoId) };
+    }
+
+    const user = await User.findByIdAndUpdate(userId, updateOps, { new: true });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "Người dùng không tồn tại!" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Tiến trình chi tiết đã được lưu thành công!",
+      h5pProgress: user.h5pProgress || {},
+      watchedVideos: user.watchedVideos || []
+    });
+  } catch (error) {
+    console.error("Lỗi lưu tiến trình H5P:", error);
     res.status(500).json({ success: false, message: "Không thể lưu tiến trình vào Database!" });
   }
 };

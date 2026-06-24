@@ -32,7 +32,7 @@ const allVideos = [
     defaultPercentage: 45,
     isNew: true,
     thumbnail: "/anhdemo.png",
-    videoUrl: "https://fireguards.h5p.com/content/1292915182618596269/embed",
+    videoUrl: "/h5p-player.html?id=bai_1",
     description: `Bài học này tái hiện một tình huống cháy thực tế tại một chung cư mini, nơi tầng 1 chứa nhiều xe máy và xe điện đang sạc, chỉ có một cầu thang thoát nạn duy nhất và hệ thống báo cháy không hoạt động. 
 Người xem sẽ vào vai Nam, một sinh viên sống ở tầng 3, và phải đưa ra những quyết định quan trọng trong từng giai đoạn của sự cố.Mỗi lựa chọn đều dẫn đến những hậu quả khác nhau, giúp người xem hiểu rõ các nguy cơ thường gặp và học được cách ứng phó đúng khi xảy ra hỏa hoạn. 
 Mục đích của bài học là nâng cao nhận thức và kỹ năng thoát nạn khi xảy ra cháy tại chung cư mini, ký túc xá và nhà trọ nhiều tầng.`
@@ -47,7 +47,7 @@ Mục đích của bài học là nâng cao nhận thức và kỹ năng thoát 
     defaultPercentage: 0,
     isNew: false,
     thumbnail: "/anhdemo.png",
-    videoUrl: "https://fireguards.h5p.com/content/1292915968955906289/embed",
+    videoUrl: "/h5p-player.html?id=bai_2",
     description: `Giữa đêm đông Hà Nội dưới 15°C, Nam (25 tuổi, kỹ sư phần mềm) đang nằm lướt điện thoại trong phòng trọ 20m² sau ca làm việc mệt mỏi. 
     Bất ngờ, chiếc bình nóng lạnh cũ trong nhà tắm phát nổ lớn, bắn ra tia lửa điện và bốc cháy dữ dội. 
     Vỏ nhựa và rèm nylon nóng chảy khiến khói độc đen kịt nhanh chóng bao trùm trần nhà. 
@@ -63,10 +63,22 @@ Mục đích của bài học là nâng cao nhận thức và kỹ năng thoát 
     defaultPercentage: 85,
     isNew: false,
     thumbnail: "/anhdemo.png",
-    videoUrl: "https://fireguards.h5p.com/content/1292916045740892609/embed",
+    videoUrl: "/h5p-player.html?id=bai_3",
     description: `Nhận biết sớm cháy điện, tránh sai lầm hắt nước gây giật, lập tức ngắt cầu dao tổng, dùng bình chữa cháy chuyên dụng (khí CO2 hoặc bột) và nhanh chóng thoát hiểm để bảo vệ tính mạng`
   },
-
+  {
+    id: 4,
+    title: "Cháy chung cư: Thoát hiểm khẩn cấp từ tầng 6",
+    category: "Thoát hiểm",
+    categoryKey: "thoat-hiem",
+    duration: "",
+    views: "512 lượt xem • 2 ngày trước",
+    defaultPercentage: 0,
+    isNew: true,
+    thumbnail: "/anhdemo.png",
+    videoUrl: "/h5p-player.html?id=bai_4",
+    description: `Một đám cháy bùng phát tại chung cư mini giữa đêm khuya. Khi khói độc nhanh chóng lan đến tầng 6, Nam phải đưa ra những quyết định sinh tử để tìm đường sống sót.`
+  }
 ];
 
 const INITIAL_NOTIFICATIONS = [
@@ -108,7 +120,7 @@ const INITIAL_NOTIFICATIONS = [
   },
 ];
 
-function Dashboard({ user, handleLogout, showToast }) {
+function Dashboard({ user, setUser, handleLogout, showToast }) {
   const [dashboardView, setDashboardView] = useState('forum'); // 'forum' | 'videos' | 'profile' | 'admin'
   const [activeTab, setActiveTab] = useState('Tất cả');
   const [selectedVideo, setSelectedVideo] = useState(null);
@@ -273,6 +285,34 @@ function Dashboard({ user, handleLogout, showToast }) {
       }
     } catch (err) {
       console.error("Không thể lưu tiến trình học:", err);
+    }
+  };
+
+  const handleProgressUpdate = (newProgress, newWatchedVideos) => {
+    setDbUser(prev => {
+      if (!prev) return prev;
+      const updated = {
+        ...prev,
+        h5pProgress: newProgress,
+        watchedVideos: newWatchedVideos
+      };
+      
+      const localUser = localStorage.getItem('user') || sessionStorage.getItem('user');
+      if (localUser) {
+        try {
+          const parsed = JSON.parse(localUser);
+          const updatedLocal = { ...parsed, h5pProgress: newProgress, watchedVideos: newWatchedVideos };
+          if (localStorage.getItem('user')) localStorage.setItem('user', JSON.stringify(updatedLocal));
+          else sessionStorage.setItem('user', JSON.stringify(updatedLocal));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      return updated;
+    });
+    
+    if (newWatchedVideos) {
+      setWatchedIds(newWatchedVideos);
     }
   };
 
@@ -637,6 +677,7 @@ function Dashboard({ user, handleLogout, showToast }) {
               onBack={() => setActiveClassroomVideo(null)}
               showToast={showToast}
               onComplete={handleCompleteVideo}
+              onProgressUpdate={handleProgressUpdate}
             />
           ) : (
             <div className="dashboard-body">
@@ -662,8 +703,9 @@ function Dashboard({ user, handleLogout, showToast }) {
               <div className="video-catalog-grid">
                 {getFilteredVideos().map((video) => {
                   const isWatched = watchedIds.includes(video.id);
-                  // Calculate actual progress status
-                  const percentShow = isWatched ? 100 : video.defaultPercentage;
+                  // Calculate actual progress status from database or fallback to mock
+                  const dbPercentage = dbUser?.h5pProgress?.[video.id]?.percentage;
+                  const percentShow = isWatched ? 100 : (dbPercentage !== undefined ? dbPercentage : video.defaultPercentage);
                   const progressText = isWatched ? 'Đã hoàn thành' : (percentShow > 0 ? `Đã xem ${percentShow}%` : 'Chưa bắt đầu');
 
                   return (
@@ -691,12 +733,12 @@ function Dashboard({ user, handleLogout, showToast }) {
                         <h3 className="video-card-title">{video.title}</h3>
 
                         <div className="progress-module">
-                          {/* <div className="progress-meta-row">
+                          <div className="progress-meta-row">
                             <span className="progress-text">{progressText}</span>
                             {percentShow > 0 && (
                               <span className="progress-percentage">{percentShow}%</span>
                             )}
-                          </div> */}
+                          </div>
 
                           <div className="progress-track-bar">
                             <div

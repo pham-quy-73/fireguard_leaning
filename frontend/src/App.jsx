@@ -1,17 +1,29 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import './App.css';
 import { FiretruckIcon } from './components/Icons';
-import Homepage from './components/Homepage';
+import { API_BASE_URL } from './config';
 import Login from './components/Login';
 import Register from './components/Register';
-import Dashboard from './components/Dashboard';
+import Dashboard, { allVideos } from './components/Dashboard';
 
 function App() {
-  const [view, setView] = useState('home'); // 'home' | 'login' | 'register' | 'videos_dashboard' | 'profile_dashboard'
+  const [view, setView] = useState('login'); // 'login' | 'register' | 'videos_dashboard' | 'profile_dashboard'
   const [user, setUser] = useState(null);
   
   // Notification Toast state
   const [notification, setNotification] = useState(null);
+
+  // Real student count from DB (for the login banner badge)
+  const [totalStudents, setTotalStudents] = useState(null);
+
+  useEffect(() => {
+    axios.get(`${API_BASE_URL}/api/auth/admin/stats`)
+      .then((res) => {
+        if (res.data?.success) setTotalStudents(res.data.totalStudents);
+      })
+      .catch(() => { /* ignore: badge falls back gracefully */ });
+  }, []);
 
   const showToast = (message, type = 'success') => {
     setNotification({ message, type });
@@ -19,6 +31,7 @@ function App() {
       setNotification(null);
     }, 4500);
   };
+
 
   // Check user cookies/local storage session on mount
   useEffect(() => {
@@ -33,7 +46,7 @@ function App() {
     localStorage.removeItem('user');
     sessionStorage.removeItem('user');
     setUser(null);
-    setView('home');
+    setView('login');
     showToast('Đã đăng xuất thành công!', 'success');
   };
 
@@ -45,7 +58,9 @@ function App() {
         <div className="badge-row">
           <div className="banner-badge">
             <span className="badge-dot"></span>
-            Tham gia cùng +5000 học viên
+            {totalStudents !== null
+              ? `Tham gia cùng ${totalStudents} học viên`
+              : 'Tham gia cùng cộng đồng học viên'}
           </div>
         </div>
         <h2 className="banner-heading">Bảo vệ bản thân và gia đình qua kiến thức chuẩn xác</h2>
@@ -55,7 +70,7 @@ function App() {
         
         <div className="stats-row">
           <div className="stat-item">
-            <span className="stat-value">100+</span>
+            <span className="stat-value">{allVideos.length}</span>
             <span className="stat-label">Bài học video</span>
           </div>
           <div className="stat-divider"></div>
@@ -80,13 +95,11 @@ function App() {
       )}
 
       {isDashboardView ? (
-        <Dashboard
-          user={user}
-          handleLogout={handleLogout}
-          showToast={showToast}
+        <Dashboard 
+          user={user} 
+          handleLogout={handleLogout} 
+          showToast={showToast} 
         />
-      ) : view === 'home' ? (
-        <Homepage setView={setView} />
       ) : (
         <div className="fullscreen-layout">
           <div className="auth-container">
@@ -100,15 +113,15 @@ function App() {
               </div>
 
               {view === 'login' ? (
-                <Login
-                  setView={setView}
-                  setUser={setUser}
-                  showToast={showToast}
+                <Login 
+                  setView={setView} 
+                  setUser={setUser} 
+                  showToast={showToast} 
                 />
               ) : (
-                <Register
-                  setView={setView}
-                  showToast={showToast}
+                <Register 
+                  setView={setView} 
+                  showToast={showToast} 
                 />
               )}
             </div>

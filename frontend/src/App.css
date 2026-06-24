@@ -3242,3 +3242,340 @@ a.contact-row:hover {
     font-size: 1.12rem;
   }
 }
+
+/* ==========================================================================
+   SETTINGS PAGE — appearance (dark mode) + student info
+   ========================================================================== */
+.settings-page {
+  max-width: 720px;
+}
+
+.settings-card {
+  background-color: #ffffff;
+  border: 1px solid #f1f5f9;
+  border-radius: 18px;
+  padding: 24px 26px;
+  margin-top: 18px;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.04);
+}
+
+.settings-card-title {
+  font-family: var(--font-main);
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-dark);
+  margin-bottom: 18px;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.settings-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.settings-row-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.settings-row-desc {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* Toggle switch */
+.theme-toggle {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.theme-toggle-track {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 64px;
+  height: 32px;
+  border-radius: 999px;
+  background-color: #e2e8f0;
+  padding: 0 7px;
+  transition: background-color 0.25s ease;
+}
+
+.theme-toggle.on .theme-toggle-track {
+  background-color: var(--primary-red);
+}
+
+.theme-toggle-icon {
+  font-size: 0.78rem;
+  line-height: 1;
+  z-index: 1;
+}
+
+.theme-toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-color: #ffffff;
+  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.25);
+  transition: transform 0.25s ease;
+}
+
+.theme-toggle.on .theme-toggle-thumb {
+  transform: translateX(32px);
+}
+
+/* Student info inside settings */
+.settings-profile-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.settings-profile-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-red), #f38ba8);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.settings-profile-id {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-profile-name {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+
+.settings-profile-role {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.settings-status-box {
+  margin-bottom: 22px;
+}
+
+.settings-status-strong {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.settings-logout-btn {
+  width: 100%;
+}
+
+/* ==========================================================================
+   DARK MODE — scoped under html.dark-mode, overrides light surfaces
+   ========================================================================== */
+.dark-mode {
+  --text-dark: #e2e8f0;
+  --text-muted: #94a3b8;
+  --bg-input: #273449;
+}
+
+.dark-mode body {
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+
+/* Page + structural panels */
+.dark-mode .dashboard-wrapper,
+.dark-mode .fullscreen-layout,
+.dark-mode .fullscreen-layout-container {
+  background-color: #0f172a;
+}
+
+.dark-mode .sidebar {
+  background-color: #1e293b;
+  border-right-color: #334155;
+}
+
+.dark-mode .main-content-panel {
+  background-color: #0f172a;
+}
+
+/* Sidebar inner pieces */
+.dark-mode .sidebar-brand-clickable:hover {
+  background-color: #273449;
+}
+
+.dark-mode .sidebar-search-input {
+  background-color: #273449;
+  color: #e2e8f0;
+}
+
+.dark-mode .sidebar-search-input:focus {
+  background-color: #0f172a;
+  border-color: #475569;
+}
+
+.dark-mode .sidebar-item:hover,
+.dark-mode .sidebar-group-header:hover,
+.dark-mode .sidebar-subitem:hover,
+.dark-mode .sidebar-footer-link:hover {
+  background-color: #273449;
+}
+
+.dark-mode .sidebar-profile-row:hover,
+.dark-mode .sidebar-profile-row.active {
+  background-color: #334155;
+}
+
+.dark-mode .sidebar-profile-avatar {
+  background-color: #334155;
+}
+
+.dark-mode .sidebar-profile-name,
+.dark-mode .sidebar-brand-title,
+.dark-mode .sidebar-item,
+.dark-mode .sidebar-subitem,
+.dark-mode .sidebar-group-title,
+.dark-mode .sidebar-footer-link {
+  color: #e2e8f0;
+}
+
+/* Generic light surfaces -> dark cards */
+.dark-mode .settings-card,
+.dark-mode .dashboard-card,
+.dark-mode .video-catalog-card,
+.dark-mode .forum-compose,
+.dark-mode .forum-card,
+.dark-mode .ann-card,
+.dark-mode .quiz-panel,
+.dark-mode .notif-panel,
+.dark-mode .contact-panel,
+.dark-mode .status-box {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+.dark-mode .forum-header {
+  background: linear-gradient(135deg, #1e293b 0%, #273449 60%);
+  border-color: #334155;
+}
+
+.dark-mode .video-meta-body {
+  background-color: #1e293b;
+}
+
+/* Headings + text */
+.dark-mode .grid-heading-title,
+.dark-mode .dash-title,
+.dark-mode .settings-card-title,
+.dark-mode .settings-row-label,
+.dark-mode .settings-profile-name,
+.dark-mode .settings-status-strong,
+.dark-mode .forum-title,
+.dark-mode .video-card-title,
+.dark-mode .notif-panel-title,
+.dark-mode .status-value {
+  color: #f1f5f9;
+}
+
+.dark-mode .grid-heading-desc,
+.dark-mode .dash-msg,
+.dark-mode .settings-row-desc,
+.dark-mode .forum-subtitle,
+.dark-mode .status-label {
+  color: #94a3b8;
+}
+
+/* Inputs */
+.dark-mode .forum-compose-input,
+.dark-mode .ann-compose-input,
+.dark-mode input[type="text"],
+.dark-mode input[type="email"],
+.dark-mode input[type="password"],
+.dark-mode input[type="tel"],
+.dark-mode textarea {
+  background-color: #273449;
+  border-color: #475569;
+  color: #e2e8f0;
+}
+
+/* Toggle + status track tweaks for dark */
+.dark-mode .theme-toggle-track {
+  background-color: #475569;
+}
+
+.dark-mode .status-box {
+  border-color: #334155;
+}
+
+/* Notification + contact panel headers/footers */
+.dark-mode .notif-panel-header,
+.dark-mode .contact-panel-header,
+.dark-mode .notif-panel-footer,
+.dark-mode .contact-panel-footer {
+  background-color: #273449;
+  border-color: #334155;
+}
+
+/* Quiz — keep the red radial glow but on a dark base */
+.dark-mode .quiz-panel {
+  background-color: #1e293b;
+  background-image: radial-gradient(ellipse at top, #3b1d22 0%, #1e293b 60%);
+  border-color: #334155;
+}
+
+.dark-mode .quiz-question {
+  color: #e2e8f0;
+}
+
+.dark-mode .quiz-option {
+  background-color: #273449;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+.dark-mode .quiz-option:hover {
+  border-color: #475569;
+}
+
+.dark-mode .quiz-option.is-selected {
+  background-color: #3b1d22;
+}
+
+.dark-mode .quiz-option.is-correct {
+  background-color: #0f2e23;
+}
+
+.dark-mode .quiz-option.is-wrong {
+  background-color: #3b1d22;
+}
+
+@media (max-width: 640px) {
+  .settings-card {
+    padding: 20px 18px;
+  }
+}

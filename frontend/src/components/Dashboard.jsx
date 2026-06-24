@@ -3,8 +3,6 @@ import axios from 'axios';
 import Classroom from './Classroom';
 import AdminPanel from './AdminPanel';
 import Forum from './CommentsPanel';
-import Announcements from './Announcements';
-import Quiz from './Quiz';
 import { API_BASE_URL } from '../config';
 import {
   PlayMenuIcon,
@@ -25,7 +23,7 @@ import {
 } from './Icons';
 
 // MOCK VIDEOS
-export const allVideos = [
+const allVideos = [
   {
     id: 1,
     title: "Mô phỏng tình huống cháy chung cư mini và kỹ năng thoát nạn an toàn.",
@@ -33,7 +31,7 @@ export const allVideos = [
     categoryKey: "co-ban",
     defaultPercentage: 45,
     isNew: true,
-    thumbnail: "/anhdemo.png",
+    thumbnail: "Chaychungcu_Thumbnail.png",
     videoUrl: "https://fireguards.h5p.com/content/1292915182618596269/embed",
     description: `Bài học này tái hiện một tình huống cháy thực tế tại một chung cư mini, nơi tầng 1 chứa nhiều xe máy và xe điện đang sạc, chỉ có một cầu thang thoát nạn duy nhất và hệ thống báo cháy không hoạt động. 
 Người xem sẽ vào vai Nam, một sinh viên sống ở tầng 3, và phải đưa ra những quyết định quan trọng trong từng giai đoạn của sự cố.Mỗi lựa chọn đều dẫn đến những hậu quả khác nhau, giúp người xem hiểu rõ các nguy cơ thường gặp và học được cách ứng phó đúng khi xảy ra hỏa hoạn. 
@@ -48,7 +46,7 @@ Mục đích của bài học là nâng cao nhận thức và kỹ năng thoát 
     views: "856 lượt xem • 5 ngày trước",
     defaultPercentage: 0,
     isNew: false,
-    thumbnail: "/anhdemo.png",
+    thumbnail: "Chaybinhnonglanh_Thumbnail.png",
     videoUrl: "https://fireguards.h5p.com/content/1292915968955906289/embed",
     description: `Giữa đêm đông Hà Nội dưới 15°C, Nam (25 tuổi, kỹ sư phần mềm) đang nằm lướt điện thoại trong phòng trọ 20m² sau ca làm việc mệt mỏi. 
     Bất ngờ, chiếc bình nóng lạnh cũ trong nhà tắm phát nổ lớn, bắn ra tia lửa điện và bốc cháy dữ dội. 
@@ -64,7 +62,7 @@ Mục đích của bài học là nâng cao nhận thức và kỹ năng thoát 
     views: "2.4k lượt xem • 1 tuần trước",
     defaultPercentage: 85,
     isNew: false,
-    thumbnail: "/anhdemo.png",
+    thumbnail: "Chayamdunnuoc_Thumbnail.png",
     videoUrl: "https://fireguards.h5p.com/content/1292916045740892609/embed",
     description: `Nhận biết sớm cháy điện, tránh sai lầm hắt nước gây giật, lập tức ngắt cầu dao tổng, dùng bình chữa cháy chuyên dụng (khí CO2 hoặc bột) và nhanh chóng thoát hiểm để bảo vệ tính mạng`
   },
@@ -111,10 +109,7 @@ const INITIAL_NOTIFICATIONS = [
 ];
 
 function Dashboard({ user, handleLogout, showToast }) {
-  const [dashboardView, setDashboardView] = useState('discussion'); // 'announcements' | 'discussion' | 'videos' | 'quiz' | 'profile' | 'admin'
-  // Sidebar expandable groups
-  const [forumGroupOpen, setForumGroupOpen] = useState(true);
-  const [learnGroupOpen, setLearnGroupOpen] = useState(true);
+  const [dashboardView, setDashboardView] = useState('forum'); // 'forum' | 'videos' | 'profile' | 'admin'
   const [activeTab, setActiveTab] = useState('Tất cả');
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -165,7 +160,7 @@ function Dashboard({ user, handleLogout, showToast }) {
     setNotifOpen(false);
     // route to target view if any
     if (n.target === 'forum') {
-      setDashboardView('discussion');
+      setDashboardView('forum');
       setActiveClassroomVideo(null);
     } else if (n.target === 'videos') {
       setDashboardView('videos');
@@ -299,21 +294,26 @@ function Dashboard({ user, handleLogout, showToast }) {
   const roleName = isAdmin ? 'Quản trị viên FIREGUARD' : 'Học viên';
   const firstLetter = displayName.charAt(0).toUpperCase();
 
+  const handleSidebarVideosClick = () => {
+    setDashboardView('videos');
+    setActiveClassroomVideo(null); // Return to catalog grid view
+    closeSidebar();
+  };
+
   const handleSidebarAdminClick = () => {
     setDashboardView('admin');
     closeSidebar();
   };
 
-  // Generic navigation helper for the new grouped sidebar items
-  const goToView = (view) => {
-    setDashboardView(view);
+  const handleSidebarForumClick = () => {
+    setDashboardView('forum');
     setActiveClassroomVideo(null);
     closeSidebar();
   };
 
-  // Clicking the brand/logo returns to the home view (Thảo luận)
+  // Clicking the brand/logo returns to the home view (Diễn đàn)
   const handleGoHome = () => {
-    setDashboardView('discussion');
+    setDashboardView('forum');
     setActiveClassroomVideo(null);
     closeSidebar();
   };
@@ -424,72 +424,99 @@ function Dashboard({ user, handleLogout, showToast }) {
         </div>
 
         <nav className="sidebar-menu">
-          {/* GROUP: Diễn đàn */}
-          <div className="sidebar-group">
-            <div
-              className="sidebar-group-header"
-              onClick={() => setForumGroupOpen((v) => !v)}
-              role="button"
-              tabIndex={0}
-            >
-              <ChatBubbleIcon />
-              <span className="sidebar-group-title">Diễn đàn</span>
-              <span className={`sidebar-group-caret ${forumGroupOpen ? 'open' : ''}`}>▾</span>
-            </div>
+          <div
+            className={`sidebar-item ${dashboardView === 'forum' ? 'active' : ''}`}
+            onClick={handleSidebarForumClick}
+          >
+            <ChatBubbleIcon />
+            Diễn đàn
+            <span className="sidebar-item-dot" title="Đang trực tiếp"></span>
+          </div>
 
-            {forumGroupOpen && (
-              <div className="sidebar-subitems">
-                <div
-                  className={`sidebar-subitem ${dashboardView === 'announcements' ? 'active' : ''}`}
-                  onClick={() => goToView('announcements')}
-                >
-                  <span className="sidebar-subitem-icon">📢</span>
-                  Thông báo
-                </div>
-                <div
-                  className={`sidebar-subitem ${dashboardView === 'discussion' ? 'active' : ''}`}
-                  onClick={() => goToView('discussion')}
-                >
-                  <span className="sidebar-subitem-icon">💬</span>
-                  Thảo luận
-                  <span className="sidebar-item-dot" title="Đang trực tiếp"></span>
-                </div>
-              </div>
+          <div
+            className={`sidebar-item ${dashboardView === 'videos' ? 'active' : ''}`}
+            onClick={handleSidebarVideosClick}
+          >
+            <PlayMenuIcon />
+            Danh sách video
+          </div>
+
+          <div
+            ref={notifTriggerRef}
+            className={`sidebar-item sidebar-item-notif ${notifOpen ? 'active' : ''}`}
+            onClick={toggleNotifPanel}
+            role="button"
+            tabIndex={0}
+          >
+            <NotifyBellIcon />
+            Thông báo
+            {unreadCount > 0 && (
+              <span className="sidebar-item-badge">{unreadCount}</span>
             )}
           </div>
 
-          {/* GROUP: Bài học */}
-          <div className="sidebar-group">
+          {notifOpen && (
             <div
-              className="sidebar-group-header"
-              onClick={() => setLearnGroupOpen((v) => !v)}
-              role="button"
-              tabIndex={0}
+              ref={notifPanelRef}
+              className="notif-panel"
+              role="dialog"
+              aria-label="Danh sách thông báo"
             >
-              <PlayMenuIcon />
-              <span className="sidebar-group-title">Bài học</span>
-              <span className={`sidebar-group-caret ${learnGroupOpen ? 'open' : ''}`}>▾</span>
-            </div>
-
-            {learnGroupOpen && (
-              <div className="sidebar-subitems">
-                <div
-                  className={`sidebar-subitem ${dashboardView === 'videos' ? 'active' : ''}`}
-                  onClick={() => goToView('videos')}
-                >
-                  <span className="sidebar-subitem-icon">📺</span>
-                  Danh sách video
+              <div className="notif-panel-header">
+                <div className="notif-panel-title-row">
+                  <span className="notif-panel-title">Thông báo</span>
+                  <span className="notif-panel-count">
+                    {unreadCount > 0
+                      ? `${unreadCount} chưa đọc`
+                      : 'Tất cả đã đọc'}
+                  </span>
                 </div>
-                <div
-                  className={`sidebar-subitem ${dashboardView === 'quiz' ? 'active' : ''}`}
-                  onClick={() => goToView('quiz')}
-                >
-                  <span className="sidebar-subitem-icon">📝</span>
-                  Quiz
-                </div>
+                {unreadCount > 0 && (
+                  <button
+                    type="button"
+                    className="notif-mark-all"
+                    onClick={handleMarkAllRead}
+                  >
+                    Đánh dấu đã đọc
+                  </button>
+                )}
               </div>
-            )}
-          </div>
+
+              <div className="notif-list">
+                {notifications.length === 0 ? (
+                  <div className="notif-empty">Không có thông báo nào.</div>
+                ) : (
+                  notifications.map((n) => (
+                    <div
+                      key={n.id}
+                      className={`notif-item ${n.isRead ? 'is-read' : 'is-unread'}`}
+                      onClick={() => handleNotifClick(n)}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <span className="notif-item-icon">{n.icon}</span>
+                      <div className="notif-item-body">
+                        <span className="notif-item-title">{n.title}</span>
+                        <span className="notif-item-desc">{n.desc}</span>
+                        <span className="notif-item-time">{n.time}</span>
+                      </div>
+                      {!n.isRead && <span className="notif-item-dot"></span>}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="notif-panel-footer">
+                <button
+                  type="button"
+                  className="notif-close-btn"
+                  onClick={() => setNotifOpen(false)}
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          )}
 
           {isAdmin && (
             <div
@@ -599,17 +626,8 @@ function Dashboard({ user, handleLogout, showToast }) {
           </button>
         </header>
 
-        {dashboardView === 'announcements' ? (
-          <Announcements user={activeUser} showToast={showToast} />
-        ) : dashboardView === 'discussion' ? (
+        {dashboardView === 'forum' ? (
           <Forum user={activeUser} showToast={showToast} />
-        ) : dashboardView === 'quiz' ? (
-          <Quiz
-            videos={allVideos}
-            watchedIds={watchedIds}
-            onComplete={handleCompleteVideo}
-            showToast={showToast}
-          />
         ) : dashboardView === 'videos' ? (
           /* Render Classroom page or course catalog list */
           activeClassroomVideo ? (

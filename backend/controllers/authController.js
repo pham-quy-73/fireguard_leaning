@@ -1,7 +1,5 @@
 const User = require('../models/User');
 const Comment = require('../models/Comment');
-const ForumPost = require('../models/ForumPost');
-const Announcement = require('../models/Announcement');
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -272,110 +270,6 @@ exports.createVideoComment = async (req, res) => {
   } catch (error) {
     console.error("Lỗi đăng bình luận:", error);
     res.status(500).json({ success: false, message: "Không thể đăng tải bình luận của bạn!" });
-  }
-};
-
-// @desc    Get all forum posts (newest first)
-// @route   GET /api/auth/forum
-// @access  Public
-exports.getForumPosts = async (req, res) => {
-  try {
-    const posts = await ForumPost.find({}).sort({ createdAt: -1 }).limit(100);
-    res.status(200).json({ success: true, posts });
-  } catch (error) {
-    console.error("Lỗi lấy bài diễn đàn:", error);
-    res.status(500).json({ success: false, message: "Không thể nạp Diễn đàn!" });
-  }
-};
-
-// @desc    Create a new forum post
-// @route   POST /api/auth/forum
-// @access  Public
-exports.createForumPost = async (req, res) => {
-  try {
-    const { userId, userName, avatarLetter, role, rating, content } = req.body;
-
-    if (!content || !content.trim()) {
-      return res.status(400).json({ success: false, message: "Nội dung bình luận không được để trống!" });
-    }
-    if (!userName || !userName.trim()) {
-      return res.status(400).json({ success: false, message: "Thiếu thông tin người dùng!" });
-    }
-
-    const newPost = new ForumPost({
-      userId: userId || null,
-      userName: userName.trim(),
-      avatarLetter: (avatarLetter || userName.trim().charAt(0)).toUpperCase(),
-      role: role || 'Học viên',
-      rating: Number(rating) || 5,
-      content: content.trim(),
-      verified: true
-    });
-
-    await newPost.save();
-
-    res.status(201).json({
-      success: true,
-      message: "Đã đăng bình luận lên Diễn đàn!",
-      post: newPost
-    });
-  } catch (error) {
-    console.error("Lỗi đăng bài diễn đàn:", error);
-    res.status(500).json({ success: false, message: "Không thể đăng bình luận của bạn!" });
-  }
-};
-
-// @desc    Get all announcements (pinned first, then newest)
-// @route   GET /api/auth/announcements
-// @access  Public (read-only for everyone)
-exports.getAnnouncements = async (req, res) => {
-  try {
-    const items = await Announcement.find({})
-      .sort({ pinned: -1, createdAt: -1 })
-      .limit(100);
-    res.status(200).json({ success: true, announcements: items });
-  } catch (error) {
-    console.error("Lỗi lấy thông báo:", error);
-    res.status(500).json({ success: false, message: "Không thể nạp danh sách thông báo!" });
-  }
-};
-
-// @desc    Create an announcement (admin only)
-// @route   POST /api/auth/announcements
-// @access  Admin
-exports.createAnnouncement = async (req, res) => {
-  try {
-    const { userId, title, content } = req.body;
-
-    if (!title || !title.trim() || !content || !content.trim()) {
-      return res.status(400).json({ success: false, message: "Vui lòng nhập đầy đủ tiêu đề và nội dung!" });
-    }
-
-    // Verify the requester is an admin straight from the database
-    const requester = userId ? await User.findById(userId) : null;
-    const isAdmin = requester &&
-      (requester.role === 'admin' || requester.email === 'admin@fireguard.com');
-
-    if (!isAdmin) {
-      return res.status(403).json({ success: false, message: "Chỉ quản trị viên mới được đăng thông báo!" });
-    }
-
-    const newItem = new Announcement({
-      title: title.trim(),
-      content: content.trim(),
-      authorName: requester.fullName || 'Ban quản trị FIREGUARD'
-    });
-
-    await newItem.save();
-
-    res.status(201).json({
-      success: true,
-      message: "Đã đăng thông báo mới!",
-      announcement: newItem
-    });
-  } catch (error) {
-    console.error("Lỗi đăng thông báo:", error);
-    res.status(500).json({ success: false, message: "Không thể đăng thông báo!" });
   }
 };
 

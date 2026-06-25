@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import { FiretruckIcon } from './components/Icons';
+import Homepage from './components/Homepage';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
 
 function App() {
-  const [view, setView] = useState('login'); // 'login' | 'register' | 'videos_dashboard' | 'profile_dashboard'
+  const [view, setView] = useState('home'); // 'home' | 'login' | 'register' | 'videos_dashboard' | 'profile_dashboard'
   const [user, setUser] = useState(null);
   
   // Notification Toast state
@@ -32,7 +33,7 @@ function App() {
     localStorage.removeItem('user');
     sessionStorage.removeItem('user');
     setUser(null);
-    setView('login');
+    setView('home');
     showToast('Đã đăng xuất thành công!', 'success');
   };
 
@@ -79,11 +80,13 @@ function App() {
       )}
 
       {isDashboardView ? (
-        <Dashboard 
-          user={user} 
-          handleLogout={handleLogout} 
-          showToast={showToast} 
+        <Dashboard
+          user={user}
+          handleLogout={handleLogout}
+          showToast={showToast}
         />
+      ) : view === 'home' ? (
+        <Homepage setView={setView} />
       ) : (
         <div className="fullscreen-layout">
           <div className="auth-container">
@@ -97,15 +100,15 @@ function App() {
               </div>
 
               {view === 'login' ? (
-                <Login 
-                  setView={setView} 
-                  setUser={setUser} 
-                  showToast={showToast} 
+                <Login
+                  setView={setView}
+                  setUser={setUser}
+                  showToast={showToast}
                 />
               ) : (
-                <Register 
-                  setView={setView} 
-                  showToast={showToast} 
+                <Register
+                  setView={setView}
+                  showToast={showToast}
                 />
               )}
             </div>

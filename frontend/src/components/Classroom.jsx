@@ -79,7 +79,7 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
 
   useEffect(() => {
     fetchComments();
-
+    
     // Tuyển chọn ngẫu nhiên một câu hỏi từ ngân hàng khi đổi video bài học
     if (PCCC_QUIZ_POOL.length > 0) {
       const randomIndex = Math.floor(Math.random() * PCCC_QUIZ_POOL.length);
@@ -92,58 +92,6 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
     setQuizMessage('');
     setShowQuiz(false);
   }, [video]);
-
-  useEffect(() => {
-    const handleH5PMessage = (event) => {
-      if (!event.data) return;
-
-      try {
-        let msgData = event.data;
-        if (typeof msgData === 'string') {
-          if (msgData.startsWith('{')) {
-            msgData = JSON.parse(msgData);
-          }
-        }
-
-        let isCompleted = false;
-
-        // Case 1: PostMessage standard xAPI/lrs statement structure
-        const statement = msgData.statement || (msgData.xAPI && msgData.xAPI.statement) || msgData;
-        if (statement && statement.verb && statement.verb.id) {
-          const verbId = statement.verb.id;
-          if (
-            verbId.includes('/completed') ||
-            verbId.includes('/passed') ||
-            verbId.includes('/scored') ||
-            verbId.includes('/responded')
-          ) {
-            isCompleted = true;
-          }
-        }
-
-        // Case 2: Direct event/action key
-        const action = msgData.action || msgData.event;
-        if (typeof action === 'string' && (action.toLowerCase() === 'completed' || action.toLowerCase() === 'passed')) {
-          isCompleted = true;
-        }
-
-        if (isCompleted) {
-          console.log("Interactive H5P tracking detected completion for video ID:", video?.id);
-          showToast("Hệ thống nhận diện bạn đã hoàn thành bài học tương tác H5P! Khóa học đã được ghi nhận.", "success");
-          if (onComplete && video?.id) {
-            onComplete(video.id);
-          }
-        }
-      } catch (err) {
-        // Safe fail for other message events
-      }
-    };
-
-    window.addEventListener('message', handleH5PMessage);
-    return () => {
-      window.removeEventListener('message', handleH5PMessage);
-    };
-  }, [video, onComplete, showToast]);
 
   const handleSendComment = async (e) => {
     e.preventDefault();
@@ -205,7 +153,7 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
       setTimeout(() => {
         setShowQuiz(false); // Quay trở lại màn hình hiển thị H5P/Video chính
         setActiveTab('reviews'); // Tự động chọn Tab "Đánh giá & Thảo luận"
-
+        
         // Thông báo bằng Toast siêu xịn xò
         showToast('Chúc mừng bạn đã hoàn thành bài học! Hãy để lại cảm nghĩ và đánh giá của bạn nhé.', 'success');
 
@@ -244,7 +192,7 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
             marginBottom: '15px',
             transition: 'color 0.2s'
           }}
-          className="back-hover-red"
+          className="back-hover-red classroom-back-row"
         >
           ← Quay lại kho khóa học
         </div>
@@ -252,7 +200,7 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
         <div className={`video-player-box ${video?.videoUrl?.includes('h5p.com') ? 'h5p-active' : 'normal-active'}`}>
           {showQuiz ? (
             /* Mock Quiz Panel mirroring the quiz in the image exactly! */
-            <div style={{
+            <div className="classroom-quiz-panel" style={{
               width: '100%',
               height: '100%',
               backgroundColor: '#f8fafc',
@@ -278,12 +226,12 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
                 <span style={{ fontSize: '1.1rem' }}>🚨</span> Tình huống khẩn cấp
               </div>
 
-              <h2 style={{ fontSize: '1.45rem', fontWeight: '800', marginBottom: '24px', lineHeight: '1.4' }}>
+              <h2 className="classroom-quiz-title" style={{ fontSize: '1.45rem', fontWeight: '800', marginBottom: '24px', lineHeight: '1.4' }}>
                 {currentQuiz?.question || "Đang tải câu hỏi trắc nghiệm..."}
               </h2>
 
               <form onSubmit={handleQuizSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxWidth: '550px' }}>
-                <label style={{
+                <label className="classroom-quiz-option" style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '12px',
@@ -308,7 +256,7 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
                   A. {currentQuiz?.optionA}
                 </label>
 
-                <label style={{
+                <label className="classroom-quiz-option" style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '12px',
@@ -364,10 +312,10 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
                     {quizMessage}
                     <button
                       type="button"
-                      onClick={() => {
-                        setSelectedQuizOption(null);
-                        setQuizSubmitted(false);
-                        setQuizMessage('');
+                      onClick={() => { 
+                        setSelectedQuizOption(null); 
+                        setQuizSubmitted(false); 
+                        setQuizMessage(''); 
                         // Tráo đổi ngẫu nhiên một câu hỏi hoàn toàn mới từ ngân hàng PCCC
                         const randomIndex = Math.floor(Math.random() * PCCC_QUIZ_POOL.length);
                         setCurrentQuiz(PCCC_QUIZ_POOL[randomIndex]);
@@ -398,8 +346,8 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
                 allow="autoplay *; geolocation *; microphone *; camera *; midi *; encrypted-media *"
                 title={video.title}
                 allowFullScreen
-                scrolling="auto"
-                style={{ border: 0, width: "100%", height: "100%" }}
+                scrolling="no"
+                style={{ border: 0, width: "100%", height: "100%", overflow: "hidden" }}
               />
             ) : (
               /* HTML5 Video Player */
@@ -408,20 +356,13 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                 controls
                 autoPlay
-                onEnded={() => {
-                  console.log("HTML5 video ended. Completing lesson...");
-                  showToast("Bạn đã xem hết video! Bài học đã được ghi nhận hoàn thành.", "success");
-                  if (onComplete && video?.id) {
-                    onComplete(video.id);
-                  }
-                }}
               />
             )
           )}
         </div>
 
         {/* Tab pill-based switcher row to avoid overlapping H5P player elements */}
-        <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', marginTop: '10px' }}>
+        <div className="classroom-mode-tabs" style={{ display: 'flex', gap: '12px', marginBottom: '20px', marginTop: '10px' }}>
           <button
             onClick={() => setShowQuiz(false)}
             style={{
@@ -465,7 +406,7 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
         </div>
 
         {/* Video Course details pane */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+        <div className="classroom-title-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
           <div>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
               <span className="video-category-tag co-ban" style={{ padding: '4px 10px', fontSize: '0.7rem' }}>Cơ bản</span>
@@ -490,7 +431,7 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
         </div> */}
 
         {/* Navbar Tabs mockup */}
-        <div style={{
+        <div className="classroom-section-tabs" style={{
           display: 'flex',
           borderBottom: '1px solid #e2e8f0',
           marginBottom: '20px'
@@ -544,258 +485,258 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
 
         {/* Tab contents switcher */}
         <div id="classroom-tabs-content">
-          {activeTab === 'desc' && (
-            <div>
-              <p style={{
-                fontSize: '0.94rem',
-                color: '#475569',
-                lineHeight: '1.7',
-                marginBottom: '24px'
-              }}>
-                {video.description}
-              </p>
+        {activeTab === 'desc' && (
+          <div>
+            <p style={{
+              fontSize: '0.94rem',
+              color: '#475569',
+              lineHeight: '1.7',
+              marginBottom: '24px'
+            }}>
+              {video.description}
+            </p>
 
-              <div style={{ display: 'flex', gap: '20px', marginBottom: '30px' }}>
-                <div style={{
-                  flex: '1',
-                  padding: '18px',
-                  backgroundColor: '#fef2f2',
-                  borderRadius: '12px',
-                  border: '1.5px solid #fee2e2',
-                  display: 'flex',
-                  gap: '12px',
-                  alignItems: 'center'
-                }}>
-                  <div style={{ fontSize: '1.8rem', color: '#c2182c' }}>🛡️</div>
-                  <div>
-                    <h4 style={{ fontSize: '0.88rem', fontWeight: '800', color: '#1e293b' }}>Chứng nhận quốc gia</h4>
-                    <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>Hoàn thành đạt 80% để nhận chứng chỉ</p>
-                  </div>
-                </div>
-
-                <div style={{
-                  flex: '1',
-                  padding: '18px',
-                  backgroundColor: '#fffbeb',
-                  borderRadius: '12px',
-                  border: '1.5px solid #fef3c7',
-                  display: 'flex',
-                  gap: '12px',
-                  alignItems: 'center'
-                }}>
-                  <div style={{ fontSize: '1.8rem', color: '#d97706' }}>📝</div>
-                  <div>
-                    <h4 style={{ fontSize: '0.88rem', fontWeight: '800', color: '#1e293b' }}>Ghi chú tương tác</h4>
-                    <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>Hệ thống tự động lưu các mốc quan trọng</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'docs' && (
-            <div style={{ padding: '10px 0 30px' }}>
+            <div className="classroom-feature-cards" style={{ display: 'flex', gap: '20px', marginBottom: '30px' }}>
               <div style={{
-                padding: '16px',
-                backgroundColor: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '10px',
+                flex: '1',
+                padding: '18px',
+                backgroundColor: '#fef2f2',
+                borderRadius: '12px',
+                border: '1.5px solid #fee2e2',
                 display: 'flex',
-                justifyContent: 'between',
+                gap: '12px',
                 alignItems: 'center'
               }}>
+                <div style={{ fontSize: '1.8rem', color: '#c2182c' }}>🛡️</div>
                 <div>
-                  <h4 style={{ fontSize: '0.88rem', fontWeight: '700' }}>📄 Cam kết & Giáo trình kỹ thuật PCCC.pdf</h4>
-                  <p style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Dung lượng: 4.8 MB • Định dạng PDF</p>
+                  <h4 style={{ fontSize: '0.88rem', fontWeight: '800', color: '#1e293b' }}>Chứng nhận quốc gia</h4>
+                  <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>Hoàn thành đạt 80% để nhận chứng chỉ</p>
                 </div>
-                <button
-                  onClick={() => showToast('Đang tải tài liệu học tập của bài học!', 'success')}
-                  style={{
-                    padding: '8px 14px',
-                    borderRadius: '6px',
-                    backgroundColor: '#c2182c',
-                    border: 'none',
-                    color: 'white',
-                    fontWeight: '700',
-                    fontSize: '0.8rem',
-                    cursor: 'pointer',
-                    marginLeft: 'auto'
-                  }}
-                >
-                  Tải xuống
-                </button>
+              </div>
+
+              <div style={{
+                flex: '1',
+                padding: '18px',
+                backgroundColor: '#fffbeb',
+                borderRadius: '12px',
+                border: '1.5px solid #fef3c7',
+                display: 'flex',
+                gap: '12px',
+                alignItems: 'center'
+              }}>
+                <div style={{ fontSize: '1.8rem', color: '#d97706' }}>📝</div>
+                <div>
+                  <h4 style={{ fontSize: '0.88rem', fontWeight: '800', color: '#1e293b' }}>Ghi chú tương tác</h4>
+                  <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>Hệ thống tự động lưu các mốc quan trọng</p>
+                </div>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Dynamic Reviews and Comment Section (matches design in image perfectly!) */}
-          <section style={{ marginTop: '10px', borderTop: activeTab !== 'desc' && activeTab !== 'docs' ? 'none' : '1px solid #f1f5f9', paddingTop: '20px' }}>
+        {activeTab === 'docs' && (
+          <div style={{ padding: '10px 0 30px' }}>
             <div style={{
+              padding: '16px',
+              backgroundColor: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '10px',
               display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '20px'
+              justifyContent: 'between',
+              alignItems: 'center'
             }}>
-              <h2 style={{ fontSize: '1.3rem', fontWeight: '800', color: '#1e293b' }}>Bình luận & Thảo luận</h2>
-              <div style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '600' }}>
-                Sắp xếp theo: <span style={{ color: '#1e293b', cursor: 'pointer' }}>Mới nhất ▾</span>
+              <div>
+                <h4 style={{ fontSize: '0.88rem', fontWeight: '700' }}>📄 Cam kết & Giáo trình kỹ thuật PCCC.pdf</h4>
+                <p style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Dung lượng: 4.8 MB • Định dạng PDF</p>
               </div>
+              <button
+                onClick={() => showToast('Đang tải tài liệu học tập của bài học!', 'success')}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '6px',
+                  backgroundColor: '#c2182c',
+                  border: 'none',
+                  color: 'white',
+                  fontWeight: '700',
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  marginLeft: 'auto'
+                }}
+              >
+                Tải xuống
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Dynamic Reviews and Comment Section (matches design in image perfectly!) */}
+        <section style={{ marginTop: '10px', borderTop: activeTab !== 'desc' && activeTab !== 'docs' ? 'none' : '1px solid #f1f5f9', paddingTop: '20px' }}>
+          <div className="classroom-discussion-header" style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '20px'
+          }}>
+            <h2 style={{ fontSize: '1.3rem', fontWeight: '800', color: '#1e293b' }}>Bình luận & Thảo luận</h2>
+            <div style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '600' }}>
+              Sắp xếp theo: <span style={{ color: '#1e293b', cursor: 'pointer' }}>Mới nhất ▾</span>
+            </div>
+          </div>
+
+          {/* Interactive Star Rating Selector and Comment box */}
+          <div className="classroom-comment-form-row" style={{ display: 'flex', gap: '16px', marginBottom: '30px' }}>
+            <div className="profile-widget-avatar" style={{ width: '40px', height: '40px', backgroundColor: '#fee2e2', borderRadius: '50%', flexShrink: '0', display: 'flex', alignItems: 'center', justify: 'center' }}>
+              <span className="profile-widget-fallback" style={{ fontSize: '0.9rem' }}>N</span>
             </div>
 
-            {/* Interactive Star Rating Selector and Comment box */}
-            <div style={{ display: 'flex', gap: '16px', marginBottom: '30px' }}>
-              <div className="profile-widget-avatar" style={{ width: '40px', height: '40px', backgroundColor: '#fee2e2', borderRadius: '50%', flexShrink: '0', display: 'flex', alignItems: 'center', justify: 'center' }}>
-                <span className="profile-widget-fallback" style={{ fontSize: '0.9rem' }}>N</span>
+            <form onSubmit={handleSendComment} style={{ flex: '1', display: 'flex', flexDirection: 'column' }}>
+              {/* Star rating picker component */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                <span style={{ fontSize: '0.82rem', color: '#64748b', fontWeight: '600' }}>Đánh giá bài học của bạn:</span>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span
+                      key={star}
+                      onClick={() => setRatingInput(star)}
+                      style={{
+                        fontSize: '1.25rem',
+                        color: star <= ratingInput ? '#fbbf24' : '#cbd5e1',
+                        cursor: 'pointer',
+                        transition: 'color 0.15s'
+                      }}
+                    >
+                      ★
+                    </span>
+                  ))}
+                </div>
+                <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#e29505' }}>{ratingInput} / 5</span>
               </div>
 
-              <form onSubmit={handleSendComment} style={{ flex: '1', display: 'flex', flexDirection: 'column' }}>
-                {/* Star rating picker component */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                  <span style={{ fontSize: '0.82rem', color: '#64748b', fontWeight: '600' }}>Đánh giá bài học của bạn:</span>
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <span
-                        key={star}
-                        onClick={() => setRatingInput(star)}
-                        style={{
-                          fontSize: '1.25rem',
-                          color: star <= ratingInput ? '#fbbf24' : '#cbd5e1',
-                          cursor: 'pointer',
-                          transition: 'color 0.15s'
-                        }}
-                      >
-                        ★
-                      </span>
-                    ))}
-                  </div>
-                  <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#e29505' }}>{ratingInput} / 5</span>
-                </div>
-
-                {/* Textarea comment box container */}
-                <div style={{
-                  border: '1.5px solid #cbd5e1',
-                  borderRadius: '12px',
-                  overflow: 'hidden',
-                  backgroundColor: '#ffffff'
-                }}>
-                  <textarea
-                    rows="3"
-                    className="comment-textarea-form"
-                    placeholder="Chia sẻ cảm nghĩ hoặc thắc mắc của bạn..."
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    style={{
-                      width: '100%',
-                      border: 'none',
-                      outline: 'none',
-                      padding: '16px',
-                      fontSize: '0.9rem',
-                      color: '#1e293b',
-                      resize: 'none',
-                      fontFamily: 'inherit'
-                    }}
-                    disabled={submittingComment}
-                  />
-
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '8px 16px',
-                    borderTop: '1px solid #f1f5f9',
-                    backgroundColor: '#fafbfc'
-                  }}>
-                    <div style={{ display: 'flex', gap: '12px', color: '#94a3b8', fontSize: '1.1rem' }}>
-                      <span style={{ cursor: 'pointer' }}>☺</span>
-                      <span style={{ cursor: 'pointer' }}>📎</span>
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  className="submit-btn"
+              {/* Textarea comment box container */}
+              <div style={{
+                border: '1.5px solid #cbd5e1',
+                borderRadius: '12px',
+                overflow: 'hidden',
+                backgroundColor: '#ffffff'
+              }}>
+                <textarea
+                  rows="3"
+                  className="comment-textarea-form"
+                  placeholder="Chia sẻ cảm nghĩ hoặc thắc mắc của bạn..."
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
                   style={{
-                    height: '40px',
-                    width: '130px',
-                    backgroundColor: '#c2182c',
-                    color: 'white',
+                    width: '100%',
                     border: 'none',
-                    borderRadius: '8px',
-                    fontWeight: '700',
-                    fontSize: '0.85rem',
-                    cursor: 'pointer',
-                    alignSelf: 'flex-end',
-                    marginTop: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 4px 10px rgba(194, 24, 44, 0.15)'
+                    outline: 'none',
+                    padding: '16px',
+                    fontSize: '0.9rem',
+                    color: '#1e293b',
+                    resize: 'none',
+                    fontFamily: 'inherit'
                   }}
                   disabled={submittingComment}
-                >
-                  {submittingComment ? 'Đang gửi...' : 'Gửi bình luận'}
-                </button>
-              </form>
-            </div>
+                />
 
-            {/* Comment list stream */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              {loadingComments ? (
-                <p style={{ color: '#64748b', fontSize: '0.85rem' }}>Đang nạp các bình luận và đánh giá...</p>
-              ) : comments.length === 0 ? (
-                <p style={{ color: '#64748b', fontSize: '0.85rem' }}>Chưa có bình luận nào. Hãy là người đầu tiên chia sẻ cảm nghĩ của bạn!</p>
-              ) : (
-                comments.map((comm) => (
-                  <div key={comm._id} style={{ display: 'flex', gap: '16px' }} className="comment-card-item">
-                    <div className="profile-widget-avatar" style={{ width: '40px', height: '40px', backgroundColor: '#e0f2fe', borderRadius: '50%', flexShrink: '0', display: 'flex', alignItems: 'center', justify: 'center' }}>
-                      <span className="profile-widget-fallback" style={{ fontSize: '0.9rem', color: '#0369a1', fontWeight: '700' }}>
-                        {comm.avatarLetter}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '8px 16px',
+                  borderTop: '1px solid #f1f5f9',
+                  backgroundColor: '#fafbfc'
+                }}>
+                  <div style={{ display: 'flex', gap: '12px', color: '#94a3b8', fontSize: '1.1rem' }}>
+                    <span style={{ cursor: 'pointer' }}>☺</span>
+                    <span style={{ cursor: 'pointer' }}>📎</span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="submit-btn classroom-comment-submit"
+                style={{
+                  height: '40px',
+                  width: '130px',
+                  backgroundColor: '#c2182c',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '700',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  alignSelf: 'flex-end',
+                  marginTop: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 10px rgba(194, 24, 44, 0.15)'
+                }}
+                disabled={submittingComment}
+              >
+                {submittingComment ? 'Đang gửi...' : 'Gửi bình luận'}
+              </button>
+            </form>
+          </div>
+
+          {/* Comment list stream */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {loadingComments ? (
+              <p style={{ color: '#64748b', fontSize: '0.85rem' }}>Đang nạp các bình luận và đánh giá...</p>
+            ) : comments.length === 0 ? (
+              <p style={{ color: '#64748b', fontSize: '0.85rem' }}>Chưa có bình luận nào. Hãy là người đầu tiên chia sẻ cảm nghĩ của bạn!</p>
+            ) : (
+              comments.map((comm) => (
+                <div key={comm._id} style={{ display: 'flex', gap: '16px' }} className="comment-card-item">
+                  <div className="profile-widget-avatar" style={{ width: '40px', height: '40px', backgroundColor: '#e0f2fe', borderRadius: '50%', flexShrink: '0', display: 'flex', alignItems: 'center', justify: 'center' }}>
+                    <span className="profile-widget-fallback" style={{ fontSize: '0.9rem', color: '#0369a1', fontWeight: '700' }}>
+                      {comm.avatarLetter}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <strong style={{ fontSize: '0.88rem', color: '#1e293b' }}>{comm.userName}</strong>
+                      <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                        {new Date(comm.createdAt).toLocaleDateString('vi-VN', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          day: '2-digit',
+                          month: '2-digit'
+                        })}
+                      </span>
+                      <span style={{
+                        fontSize: '0.75rem',
+                        color: '#fbbf24',
+                        marginLeft: '5px',
+                        backgroundColor: '#fef3c7',
+                        padding: '1px 6px',
+                        borderRadius: '4px',
+                        fontWeight: '600'
+                      }}>
+                        {comm.rating} ★
                       </span>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <strong style={{ fontSize: '0.88rem', color: '#1e293b' }}>{comm.userName}</strong>
-                        <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                          {new Date(comm.createdAt).toLocaleDateString('vi-VN', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            day: '2-digit',
-                            month: '2-digit'
-                          })}
-                        </span>
-                        <span style={{
-                          fontSize: '0.75rem',
-                          color: '#fbbf24',
-                          marginLeft: '5px',
-                          backgroundColor: '#fef3c7',
-                          padding: '1px 6px',
-                          borderRadius: '4px',
-                          fontWeight: '600'
-                        }}>
-                          {comm.rating} ★
-                        </span>
-                      </div>
+                    <p style={{ fontSize: '0.88rem', color: '#475569', lineHeight: '1.5', marginTop: '3px' }}>
+                      {comm.content}
+                    </p>
 
-                      <p style={{ fontSize: '0.88rem', color: '#475569', lineHeight: '1.5', marginTop: '3px' }}>
-                        {comm.content}
-                      </p>
-
-                      <div style={{ display: 'flex', gap: '15px', color: '#94a3b8', fontSize: '0.75rem', fontWeight: '700', marginTop: '6px' }}>
-                        <span style={{ cursor: 'pointer' }} className="like-btn" onClick={() => showToast('Cảm ơn bạn đã thích đóng góp!', 'success')}>
-                          👍 {comm.likes || 0} Trả lời
-                        </span>
-                        <span style={{ cursor: 'pointer' }} onClick={() => showToast('Tính năng trả hồi bài viết sẽ được hỗ trợ sớm.', 'success')}>Phản hồi</span>
-                      </div>
+                    <div style={{ display: 'flex', gap: '15px', color: '#94a3b8', fontSize: '0.75rem', fontWeight: '700', marginTop: '6px' }}>
+                      <span style={{ cursor: 'pointer' }} className="like-btn" onClick={() => showToast('Cảm ơn bạn đã thích đóng góp!', 'success')}>
+                        👍 {comm.likes || 0} Trả lời
+                      </span>
+                      <span style={{ cursor: 'pointer' }} onClick={() => showToast('Tính năng trả hồi bài viết sẽ được hỗ trợ sớm.', 'success')}>Phản hồi</span>
                     </div>
                   </div>
-                ))
-              )}
-            </div>
-          </section>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
 
-        </div>
+      </div>
       </div>
     </div>
   );

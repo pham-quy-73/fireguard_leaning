@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
 :root {
   --primary-red: #b91c1c;
@@ -8,7 +8,7 @@
   --border-focus: rgba(185, 28, 28, 0.4);
   --text-dark: #1e293b;
   --text-muted: #64748b;
-  --font-main: 'Be Vietnam Pro', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-main: 'Outfit', sans-serif;
 }
 
 * {
@@ -17,11 +17,8 @@
   padding: 0;
 }
 
-body, input, button, textarea, select {
-  font-family: var(--font-main);
-}
-
 body {
+  font-family: var(--font-main);
   background-color: #f1f5f9;
   color: var(--text-dark);
   min-height: 100vh;

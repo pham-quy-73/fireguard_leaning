@@ -82,60 +82,72 @@ const INITIAL_COMMENTS = [
   },
 ];
 
+const STREAM = [
+  {
+    name: 'Hoàng Phương',
+    avatar: 'HP',
+    role: 'Học viên',
+    content: 'Vừa hoàn thành bài 5 — quiz vui và sát kiến thức thực tế.',
+  },
+  {
+    name: 'Trịnh Văn Đức',
+    avatar: 'VĐ',
+    role: 'Lính cứu hoả',
+    content: 'Nội dung chuẩn nghiệp vụ, mình recommend cho người mới vào nghề.',
+  },
+  {
+    name: 'Ngô Minh Châu',
+    avatar: 'MC',
+    role: 'Học viên',
+    content: 'UI mượt, mở trên điện thoại cũng được, học được mọi lúc mọi nơi.',
+  },
+  {
+    name: 'Cao Bảo Trân',
+    avatar: 'BT',
+    role: 'Sinh viên Y',
+    content: 'Phần sơ cứu bỏng rất hữu ích cho ngành mình, cảm ơn team.',
+  },
+  {
+    name: 'Lý Thành Đạt',
+    avatar: 'TĐ',
+    role: 'Học viên',
+    content: 'Đang học thử miễn phí, đăng ký account luôn để theo dõi tiến độ.',
+  },
+  {
+    name: 'Đặng Thuỳ Dương',
+    avatar: 'TD',
+    role: 'Nhân viên HCNS',
+    content: 'Tài liệu PDF tải về làm sổ tay nội bộ rất tiện.',
+  },
+];
+
 const renderStars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
 
-// Convert a stored timestamp into a friendly Vietnamese relative time
-const formatRelativeTime = (dateStr) => {
-  if (!dateStr) return '';
-  const then = new Date(dateStr).getTime();
-  const diffSec = Math.floor((Date.now() - then) / 1000);
-  if (diffSec < 60) return 'Vừa xong';
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin} phút trước`;
-  const diffHour = Math.floor(diffMin / 60);
-  if (diffHour < 24) return `${diffHour} giờ trước`;
-  const diffDay = Math.floor(diffHour / 24);
-  if (diffDay < 7) return `${diffDay} ngày trước`;
-  return new Date(dateStr).toLocaleDateString('vi-VN');
-};
-
-// Map a raw DB post into the shape the UI cards expect
-const mapPost = (p) => ({
-  id: p._id,
-  name: p.userName,
-  avatar: (p.avatarLetter || p.userName?.charAt(0) || 'A').toUpperCase(),
-  role: p.role || 'Học viên',
-  rating: p.rating || 5,
-  time: formatRelativeTime(p.createdAt),
-  verified: p.verified,
-  content: p.content,
-});
-
 export default function Forum({ user, showToast }) {
-  const [comments, setComments] = useState([]);
+  const [comments, setComments] = useState(INITIAL_COMMENTS);
   const [draft, setDraft] = useState('');
-  const [posting, setPosting] = useState(false);
   const [totalStudents, setTotalStudents] = useState(null);
   const listRef = useRef(null);
 
-  // Load forum posts from MongoDB on mount; seed defaults only if board is empty
   useEffect(() => {
-    let cancelled = false;
-    const loadPosts = async () => {
-      try {
-        const res = await axios.get(`${API_BASE_URL}/api/auth/forum`);
-        if (cancelled) return;
-        if (res.data?.success && res.data.posts.length > 0) {
-          setComments(res.data.posts.map(mapPost));
-        } else {
-          setComments(INITIAL_COMMENTS);
-        }
-      } catch (err) {
-        if (!cancelled) setComments(INITIAL_COMMENTS);
-      }
-    };
-    loadPosts();
-    return () => { cancelled = true; };
+    let idx = 0;
+    const interval = setInterval(() => {
+      const item = STREAM[idx % STREAM.length];
+      idx += 1;
+      const newComment = {
+        id: `live-${Date.now()}`,
+        ...item,
+        rating: 5,
+        time: 'Vừa xong',
+        verified: idx % 2 === 0,
+        isNew: true,
+      };
+      setComments((prev) => {
+        const updated = prev.map((c) => ({ ...c, isNew: false }));
+        return [newComment, ...updated].slice(0, 30);
+      });
+    }, 9000);
+    return () => clearInterval(interval);
   }, []);
 
   // Pull live student count from MongoDB; refresh every 60s so the bar reflects new sign-ups
@@ -177,35 +189,26 @@ export default function Forum({ user, showToast }) {
   const myInitial = myName.charAt(0).toUpperCase();
   const myRole = user?.role === 'admin' ? 'Quản trị viên' : 'Học viên';
 
-  const handlePost = async (e) => {
+  const handlePost = (e) => {
     e.preventDefault();
     const text = draft.trim();
-    if (!text || posting) return;
-
-    setPosting(true);
-    try {
-      const res = await axios.post(`${API_BASE_URL}/api/auth/forum`, {
-        userId: user?.id || null,
-        userName: myName,
-        avatarLetter: myInitial,
-        role: myRole,
-        rating: 5,
-        content: text,
-      });
-
-      if (res.data?.success) {
-        const saved = { ...mapPost(res.data.post), isMe: true, isNew: true };
-        setComments((prev) => [saved, ...prev.map((c) => ({ ...c, isNew: false }))]);
-        setDraft('');
-        if (listRef.current) listRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-        if (showToast) showToast(res.data.message || 'Đã đăng bình luận lên Diễn đàn!', 'success');
-      }
-    } catch (err) {
-      const msg = err.response?.data?.message || 'Không thể đăng bình luận. Vui lòng thử lại!';
-      if (showToast) showToast(msg, 'error');
-    } finally {
-      setPosting(false);
-    }
+    if (!text) return;
+    const me = {
+      id: `me-${Date.now()}`,
+      name: myName,
+      avatar: myInitial,
+      role: myRole,
+      rating: 5,
+      time: 'Vừa xong',
+      verified: true,
+      content: text,
+      isMe: true,
+      isNew: true,
+    };
+    setComments((prev) => [me, ...prev.map((c) => ({ ...c, isNew: false }))]);
+    setDraft('');
+    if (listRef.current) listRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    if (showToast) showToast('Đã đăng bình luận lên Diễn đàn!', 'success');
   };
 
   return (
@@ -257,9 +260,9 @@ export default function Forum({ user, showToast }) {
         <button
           type="submit"
           className="forum-compose-submit"
-          disabled={!draft.trim() || posting}
+          disabled={!draft.trim()}
         >
-          {posting ? 'Đang đăng...' : 'Đăng'}
+          Đăng
         </button>
       </form>
 

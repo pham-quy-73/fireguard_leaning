@@ -7,7 +7,8 @@ const connectDB = require('./config/db');
 const app = express();
 const port = process.env.PORT || 5000;
 
-// Connect to MongoDB and seed default videos
+// Connect to MongoDB using the external config file
+connectDB();
 
 app.use(cors());
 app.use(express.json());
@@ -17,24 +18,13 @@ app.use('/api/auth', require('./routes/authRoutes'));
 
 // App Metadata
 app.get('/api/metadata', (req, res) => {
-  res.json({
+  res.json({ 
     message: "Backend is successfully connected!",
     version: "1.0.0",
     databaseStatus: mongoose.connection.readyState === 1 ? "Connected" : "Disconnected"
   });
 });
 
-const startServer = async () => {
-  try {
-    await connectDB();
-
-    app.listen(port, () => {
-      console.log(`Server running on port: ${port}`);
-    });
-  } catch (error) {
-    console.error(error);
-    process.exit(1);
-  }
-};
-
-startServer();
+app.listen(port, () => {
+  console.log(`Server running on port: ${port}`);
+});

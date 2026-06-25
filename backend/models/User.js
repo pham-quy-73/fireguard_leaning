@@ -30,10 +30,6 @@ const UserSchema = new mongoose.Schema({
   watchedVideos: {
     type: [Number], // Store list of watched video IDs
     default: []
-  },
-  h5pProgress: {
-    type: mongoose.Schema.Types.Mixed,
-    default: {}
   }
 }, { timestamps: true });
 

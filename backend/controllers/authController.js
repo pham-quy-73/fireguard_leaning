@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Comment = require('../models/Comment');
-const Video = require('../models/Video');
+const ForumPost = require('../models/ForumPost');
+const Announcement = require('../models/Announcement');
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -84,8 +85,7 @@ exports.registerUser = async (req, res) => {
         phone: newUser.phone,
         address: newUser.address,
         role: newUser.role,
-        watchedVideos: [],
-        h5pProgress: {}
+        watchedVideos: []
       } 
     });
   } catch (error) {
@@ -124,8 +124,7 @@ exports.loginUser = async (req, res) => {
         phone: user.phone || '',
         address: user.address || '',
         role: user.role || (user.email === 'admin@fireguard.com' ? 'admin' : 'student'),
-        watchedVideos: user.watchedVideos || [],
-        h5pProgress: user.h5pProgress || {}
+        watchedVideos: user.watchedVideos || []
       } 
     });
   } catch (error) {
@@ -153,8 +152,7 @@ exports.getUserProfile = async (req, res) => {
         phone: user.phone || '',
         address: user.address || '',
         role: user.role || (user.email === 'admin@fireguard.com' ? 'admin' : 'student'),
-        watchedVideos: user.watchedVideos || [],
-        h5pProgress: user.h5pProgress || {}
+        watchedVideos: user.watchedVideos || []
       }
     });
   } catch (error) {
@@ -192,49 +190,6 @@ exports.watchVideo = async (req, res) => {
     });
   } catch (error) {
     console.error("Lỗi ghi nhận xem video:", error);
-    res.status(500).json({ success: false, message: "Không thể lưu tiến trình vào Database!" });
-  }
-};
-
-// @desc    Save/Update H5P progress and state for a user
-// @route   POST /api/auth/progress
-// @access  Public
-exports.saveProgress = async (req, res) => {
-  try {
-    const { userId, videoId, percentage, state } = req.body;
-    
-    if (!userId || videoId === undefined) {
-      return res.status(400).json({ success: false, message: "Thiếu dữ liệu Người dùng hoặc Video ID!" });
-    }
-
-    const updatePath = `h5pProgress.${videoId}`;
-    const updateQuery = {};
-    updateQuery[updatePath] = {
-      percentage: Number(percentage) || 0,
-      state: state || {}
-    };
-
-    const updateOps = { $set: updateQuery };
-    
-    // Automatically add to watchedVideos if progress is 100%
-    if (Number(percentage) === 100) {
-      updateOps.$addToSet = { watchedVideos: Number(videoId) };
-    }
-
-    const user = await User.findByIdAndUpdate(userId, updateOps, { new: true });
-
-    if (!user) {
-      return res.status(404).json({ success: false, message: "Người dùng không tồn tại!" });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Tiến trình chi tiết đã được lưu thành công!",
-      h5pProgress: user.h5pProgress || {},
-      watchedVideos: user.watchedVideos || []
-    });
-  } catch (error) {
-    console.error("Lỗi lưu tiến trình H5P:", error);
     res.status(500).json({ success: false, message: "Không thể lưu tiến trình vào Database!" });
   }
 };
@@ -317,6 +272,110 @@ exports.createVideoComment = async (req, res) => {
   } catch (error) {
     console.error("Lỗi đăng bình luận:", error);
     res.status(500).json({ success: false, message: "Không thể đăng tải bình luận của bạn!" });
+  }
+};
+
+// @desc    Get all forum posts (newest first)
+// @route   GET /api/auth/forum
+// @access  Public
+exports.getForumPosts = async (req, res) => {
+  try {
+    const posts = await ForumPost.find({}).sort({ createdAt: -1 }).limit(100);
+    res.status(200).json({ success: true, posts });
+  } catch (error) {
+    console.error("Lỗi lấy bài diễn đàn:", error);
+    res.status(500).json({ success: false, message: "Không thể nạp Diễn đàn!" });
+  }
+};
+
+// @desc    Create a new forum post
+// @route   POST /api/auth/forum
+// @access  Public
+exports.createForumPost = async (req, res) => {
+  try {
+    const { userId, userName, avatarLetter, role, rating, content } = req.body;
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({ success: false, message: "Nội dung bình luận không được để trống!" });
+    }
+    if (!userName || !userName.trim()) {
+      return res.status(400).json({ success: false, message: "Thiếu thông tin người dùng!" });
+    }
+
+    const newPost = new ForumPost({
+      userId: userId || null,
+      userName: userName.trim(),
+      avatarLetter: (avatarLetter || userName.trim().charAt(0)).toUpperCase(),
+      role: role || 'Học viên',
+      rating: Number(rating) || 5,
+      content: content.trim(),
+      verified: true
+    });
+
+    await newPost.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Đã đăng bình luận lên Diễn đàn!",
+      post: newPost
+    });
+  } catch (error) {
+    console.error("Lỗi đăng bài diễn đàn:", error);
+    res.status(500).json({ success: false, message: "Không thể đăng bình luận của bạn!" });
+  }
+};
+
+// @desc    Get all announcements (pinned first, then newest)
+// @route   GET /api/auth/announcements
+// @access  Public (read-only for everyone)
+exports.getAnnouncements = async (req, res) => {
+  try {
+    const items = await Announcement.find({})
+      .sort({ pinned: -1, createdAt: -1 })
+      .limit(100);
+    res.status(200).json({ success: true, announcements: items });
+  } catch (error) {
+    console.error("Lỗi lấy thông báo:", error);
+    res.status(500).json({ success: false, message: "Không thể nạp danh sách thông báo!" });
+  }
+};
+
+// @desc    Create an announcement (admin only)
+// @route   POST /api/auth/announcements
+// @access  Admin
+exports.createAnnouncement = async (req, res) => {
+  try {
+    const { userId, title, content } = req.body;
+
+    if (!title || !title.trim() || !content || !content.trim()) {
+      return res.status(400).json({ success: false, message: "Vui lòng nhập đầy đủ tiêu đề và nội dung!" });
+    }
+
+    // Verify the requester is an admin straight from the database
+    const requester = userId ? await User.findById(userId) : null;
+    const isAdmin = requester &&
+      (requester.role === 'admin' || requester.email === 'admin@fireguard.com');
+
+    if (!isAdmin) {
+      return res.status(403).json({ success: false, message: "Chỉ quản trị viên mới được đăng thông báo!" });
+    }
+
+    const newItem = new Announcement({
+      title: title.trim(),
+      content: content.trim(),
+      authorName: requester.fullName || 'Ban quản trị FIREGUARD'
+    });
+
+    await newItem.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Đã đăng thông báo mới!",
+      announcement: newItem
+    });
+  } catch (error) {
+    console.error("Lỗi đăng thông báo:", error);
+    res.status(500).json({ success: false, message: "Không thể đăng thông báo!" });
   }
 };
 
@@ -408,186 +467,3 @@ exports.getAdminStats = async (req, res) => {
     res.status(500).json({ success: false, message: "Không thể nạp dữ liệu thống kê từ Máy chủ!" });
   }
 };
-
-// @desc    Update user profile details
-// @route   POST /api/auth/profile/update
-// @access  Public
-exports.updateUserProfile = async (req, res) => {
-  try {
-    const { userId, fullName, phone, address } = req.body;
-    
-    if (!userId) {
-      return res.status(400).json({ success: false, message: "Thiếu ID người dùng!" });
-    }
-
-    const nameTrim = (fullName || '').trim();
-    const phoneTrim = (phone || '').trim();
-    const addressTrim = (address || '').trim();
-
-    if (!nameTrim) {
-      return res.status(400).json({ success: false, message: "Họ và tên không được để trống!" });
-    }
-    if (nameTrim.length < 2) {
-      return res.status(400).json({ success: false, message: "Họ và tên phải dài ít nhất 2 ký tự!" });
-    }
-
-    const phoneRegex = /^(0|\+84)[3|5|7|8|9][0-9]{8}$/;
-    if (!phoneTrim) {
-      return res.status(400).json({ success: false, message: "Số điện thoại không được để trống!" });
-    }
-    if (!phoneRegex.test(phoneTrim)) {
-      return res.status(400).json({ success: false, message: "Số điện thoại không hợp lệ!" });
-    }
-
-    if (!addressTrim) {
-      return res.status(400).json({ success: false, message: "Địa chỉ không được để trống!" });
-    }
-    if (addressTrim.length < 5) {
-      return res.status(400).json({ success: false, message: "Địa chỉ phải dài từ 5 ký tự trở lên!" });
-    }
-
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { fullName: nameTrim, phone: phoneTrim, address: addressTrim },
-      { new: true }
-    );
-
-    if (!user) {
-      return res.status(404).json({ success: false, message: "Người dùng không tồn tại!" });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Cập nhật thông tin hồ sơ thành công!",
-      user: {
-        id: user._id,
-        email: user.email,
-        fullName: user.fullName || '',
-        phone: user.phone || '',
-        address: user.address || '',
-        role: user.role,
-        watchedVideos: user.watchedVideos || []
-      }
-    });
-  } catch (error) {
-    console.error("Lỗi cập nhật hồ sơ:", error);
-    res.status(500).json({ success: false, message: "Không thể lưu thông tin cập nhật vào Database!" });
-  }
-};
-
-// @desc    Get all videos
-// @route   GET /api/auth/videos
-// @access  Public
-exports.getVideos = async (req, res) => {
-  try {
-    const videos = await Video.find({}).sort({ id: 1 });
-    res.status(200).json({ success: true, videos });
-  } catch (error) {
-    console.error("Lỗi lấy danh sách video:", error);
-    res.status(500).json({ success: false, message: "Không thể nạp danh sách bài học!" });
-  }
-};
-
-// @desc    Create a new video (admin)
-// @route   POST /api/auth/videos
-// @access  Public
-exports.createVideo = async (req, res) => {
-  try {
-    const { title, category, videoUrl, description, thumbnail, isNew } = req.body;
-    
-    if (!title || !category || !videoUrl) {
-      return res.status(400).json({ success: false, message: "Vui lòng nhập đầy đủ Tiêu đề, Danh mục và Link video H5P!" });
-    }
-
-    // Auto-calculate incremental video ID
-    const lastVideo = await Video.findOne({}).sort({ id: -1 });
-    const nextId = lastVideo ? lastVideo.id + 1 : 1;
-
-    const categoryKey = category === 'Cơ bản' ? 'co-ban' : 'thoat-hiem';
-
-    const newVideo = new Video({
-      id: nextId,
-      title,
-      category,
-      categoryKey,
-      videoUrl,
-      description: description || '',
-      thumbnail: thumbnail || '/anhdemo.png',
-      isNew: isNew || false,
-      defaultPercentage: 0,
-      duration: ''
-    });
-
-    await newVideo.save();
-
-    res.status(201).json({
-      success: true,
-      message: "Thêm video bài giảng mới thành công!",
-      video: newVideo
-    });
-  } catch (error) {
-    console.error("Lỗi thêm video:", error);
-    res.status(500).json({ success: false, message: "Không thể lưu video mới vào Database!" });
-  }
-};
-
-// @desc    Update an existing video (admin)
-// @route   PUT /api/auth/videos/:id
-// @access  Public
-exports.updateVideo = async (req, res) => {
-  try {
-    const videoId = Number(req.params.id);
-    const { title, category, videoUrl, description, thumbnail, isNew } = req.body;
-
-    if (!title || !category || !videoUrl) {
-      return res.status(400).json({ success: false, message: "Tiêu đề, Danh mục và Link video H5P không được trống!" });
-    }
-
-    const categoryKey = category === 'Cơ bản' ? 'co-ban' : 'thoat-hiem';
-
-    const video = await Video.findOneAndUpdate(
-      { id: videoId },
-      { 
-        title, 
-        category, 
-        categoryKey, 
-        videoUrl, 
-        description: description || '', 
-        thumbnail: thumbnail || '/anhdemo.png',
-        isNew: isNew || false
-      },
-      { new: true }
-    );
-
-    if (!video) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy video cần sửa!" });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Cập nhật video bài giảng thành công!",
-      video
-    });
-  } catch (error) {
-    console.error("Lỗi cập nhật video:", error);
-    res.status(500).json({ success: false, message: "Không thể cập nhật video!" });
-  }
-};
-
-// @desc    Delete a video (admin)
-// @route   DELETE /api/auth/videos/:id
-// @access  Public
-exports.deleteVideo = async (req, res) => {
-  try {
-    const videoId = Number(req.params.id);
-    const result = await Video.findOneAndDelete({ id: videoId });
-    if (!result) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy video để xóa!" });
-    }
-    res.status(200).json({ success: true, message: "Đã xóa video bài giảng thành công!" });
-  } catch (error) {
-    console.error("Lỗi xóa video:", error);
-    res.status(500).json({ success: false, message: "Không thể xóa video!" });
-  }
-};
-

@@ -23,6 +23,9 @@ import {
 
 // Default fallbacks in case database connection fails on startup
 const defaultMockVideos = [
+// Dữ liệu dự phòng dùng khi không gọi được API (mất mạng / backend chưa chạy).
+// Nguồn chính thức là MongoDB qua GET /api/videos — xem state `videos` bên dưới.
+const FALLBACK_VIDEOS = [
   {
     id: 1,
     title: "Tình huống cháy chung cư",
@@ -118,10 +121,110 @@ const INITIAL_NOTIFICATIONS = [
 function Dashboard({ user, setUser, handleLogout, showToast }) {
   const [dashboardView, setDashboardView] = useState("forum"); // 'forum' | 'videos' | 'profile' | 'admin'
   const [activeTab, setActiveTab] = useState("Tất cả");
+function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) {
+  const [dashboardView, setDashboardView] = useState('discussion'); // 'announcements' | 'discussion' | 'videos' | 'quiz' | 'profile' | 'admin' | 'settings'
+  // Sidebar expandable groups
+  const [forumGroupOpen, setForumGroupOpen] = useState(true);
+  const [learnGroupOpen, setLearnGroupOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState('Tất cả');
   const [selectedVideo, setSelectedVideo] = useState(null);
 
   // Classroom video details state
   const [activeClassroomVideo, setActiveClassroomVideo] = useState(null);
+
+  // Danh sách video lấy trực tiếp từ MongoDB (GET /api/videos).
+  // Thêm/xóa video trong DB sẽ phản ánh ngay khi tải lại trang.
+  const [videos, setVideos] = useState([]);
+  const [videosLoading, setVideosLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    axios.get(`${API_BASE_URL}/api/videos`)
+      .then((res) => {
+        if (!active) return;
+        if (res.data?.success && Array.isArray(res.data.videos) && res.data.videos.length) {
+          setVideos(res.data.videos);
+        } else {
+          setVideos(FALLBACK_VIDEOS); // DB rỗng hoặc shape lạ -> dùng dự phòng
+        }
+      })
+      .catch(() => {
+        if (active) setVideos(FALLBACK_VIDEOS); // mất mạng / backend chưa chạy
+      })
+      .finally(() => {
+        if (active) setVideosLoading(false);
+      });
+    return () => { active = false; };
+  }, []);
+
+  // Lock body scroll when sidebar drawer is open on mobile
+  useEffect(() => {
+    document.body.style.overflow = sidebarOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [sidebarOpen]);
+
+  // Close notification dropdown when clicking outside
+  useEffect(() => {
+    if (!notifOpen) return undefined;
+    const handleClick = (e) => {
+      if (
+        notifPanelRef.current?.contains(e.target) ||
+        notifTriggerRef.current?.contains(e.target)
+      ) return;
+      setNotifOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [notifOpen]);
+
+  const closeSidebar = () => setSidebarOpen(false);
+
+  const handleNotifClick = (n) => {
+    // mark as read
+    setNotifications((prev) =>
+      prev.map((it) => (it.id === n.id ? { ...it, isRead: true } : it))
+    );
+    setNotifOpen(false);
+    // route to target view if any
+    if (n.target === 'forum') {
+      setDashboardView('discussion');
+      setActiveClassroomVideo(null);
+    } else if (n.target === 'videos') {
+      setDashboardView('videos');
+      setActiveClassroomVideo(null);
+    } else if (n.target === 'profile') {
+      setDashboardView('settings');
+      setActiveClassroomVideo(null);
+    }
+    closeSidebar();
+  };
+
+  const handleMarkAllRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    showToast('Đã đánh dấu tất cả thông báo là đã đọc.', 'success');
+  };
+
+  const toggleNotifPanel = () => {
+    setNotifOpen((v) => !v);
+  };
+
+  // Close contact popup when clicking outside
+  useEffect(() => {
+    if (!contactOpen) return undefined;
+    const handleClick = (e) => {
+      if (
+        contactPanelRef.current?.contains(e.target) ||
+        contactTriggerRef.current?.contains(e.target)
+      ) return;
+      setContactOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [contactOpen]);
+
+  const toggleContactPanel = () => {
+    setContactOpen((v) => !v);
+  };
 
   // Dynamic user details synced from Live Database
   const [dbUser, setDbUser] = useState(null);
@@ -242,6 +345,9 @@ function Dashboard({ user, setUser, handleLogout, showToast }) {
       axios
         .get(`${API_BASE_URL}/api/auth/profile/${activeId}`)
         .then((response) => {
+    if (dashboardView === 'settings' && activeId) {
+      axios.get(`${API_BASE_URL}/api/auth/profile/${activeId}`)
+        .then(response => {
           if (response.data.success) {
             setDbUser(response.data.user);
             setWatchedIds(response.data.user.watchedVideos || []);
@@ -334,6 +440,10 @@ function Dashboard({ user, setUser, handleLogout, showToast }) {
       return videos.filter((v) => v.category === "Thoát hiểm");
     if (activeTab === "Thoát hiểm khẩn cấp")
       return videos.filter((v) => v.category === "Thoát hiểm");
+    if (activeTab === 'Tất cả') return videos;
+    if (activeTab === 'Cơ bản') return videos.filter(v => v.category === 'Cơ bản');
+    if (activeTab === 'Chung cư/Nhà cao tầng') return videos.filter(v => v.category === 'Thoát hiểm');
+    if (activeTab === 'Thoát hiểm khẩn cấp') return videos.filter(v => v.category === 'Thoát hiểm');
     return videos;
   };
 
@@ -358,6 +468,18 @@ function Dashboard({ user, setUser, handleLogout, showToast }) {
   const handleSidebarVideosClick = () => {
     setDashboardView("videos");
     setActiveClassroomVideo(null); // Return to catalog grid view
+  // Generic navigation helper for the new grouped sidebar items
+  const goToView = (view) => {
+    setDashboardView(view);
+    setActiveClassroomVideo(null);
+    closeSidebar();
+  };
+
+  // Clicking the brand/logo returns to the home view (Thảo luận)
+  const handleGoHome = () => {
+    setDashboardView('discussion');
+    setActiveClassroomVideo(null);
+    closeSidebar();
   };
 
   return (
@@ -479,6 +601,32 @@ function Dashboard({ user, setUser, handleLogout, showToast }) {
           {/* <div className="sidebar-item" onClick={() => showToast('Tính năng Lịch sử xem sẽ sớm được cập nhật.', 'success')}>
             <HistoryClockIcon />
             Lịch sử xem
+
+          <div
+            className={`sidebar-item ${dashboardView === 'settings' ? 'active' : ''}`}
+            onClick={() => goToView('settings')}
+            role="button"
+            tabIndex={0}
+            style={{
+              borderLeft:
+                dashboardView === 'settings'
+                  ? '3px solid var(--primary-red)'
+                  : '3px solid transparent'
+            }}
+          >
+            <SettingsGearIcon />
+            Cài đặt
+          </div>
+
+          <div
+            ref={contactTriggerRef}
+            className={`sidebar-item ${contactOpen ? 'active' : ''}`}
+            onClick={toggleContactPanel}
+            role="button"
+            tabIndex={0}
+          >
+            <PhoneIcon />
+            Thông tin liên hệ
           </div>
           <div className="sidebar-item" onClick={() => showToast('Tính năng Quản lý video của bạn.', 'success')}>
             <VideoManagerIcon />
@@ -543,6 +691,18 @@ function Dashboard({ user, setUser, handleLogout, showToast }) {
         </header>
 
         {dashboardView === "videos" ? (
+        {dashboardView === 'announcements' ? (
+          <Announcements user={activeUser} showToast={showToast} />
+        ) : dashboardView === 'discussion' ? (
+          <Forum user={activeUser} showToast={showToast} />
+        ) : dashboardView === 'quiz' ? (
+          <Quiz
+            videos={videos}
+            watchedIds={watchedIds}
+            onComplete={handleCompleteVideo}
+            showToast={showToast}
+          />
+        ) : dashboardView === 'videos' ? (
           /* Render Classroom page or course catalog list */
           activeClassroomVideo ? (
             <Classroom
@@ -575,6 +735,11 @@ function Dashboard({ user, setUser, handleLogout, showToast }) {
               </div> */}
 
               {/* Catalog Grid */}
+              {videosLoading ? (
+                <p className="grid-heading-desc">Đang tải danh sách bài học từ cơ sở dữ liệu...</p>
+              ) : getFilteredVideos().length === 0 ? (
+                <p className="grid-heading-desc">Chưa có bài học nào trong cơ sở dữ liệu.</p>
+              ) : (
               <div className="video-catalog-grid">
                 {getFilteredVideos().map((video) => {
                   const isWatched = watchedIds.includes(video.id);
@@ -670,6 +835,8 @@ function Dashboard({ user, setUser, handleLogout, showToast }) {
                   );
                 })}
               </div>
+              )}
+
             </div>
           )
         ) : dashboardView === "admin" ? (
@@ -775,6 +942,80 @@ function Dashboard({ user, setUser, handleLogout, showToast }) {
                       </div>
                     </div>
                   </div>
+          /* SETTINGS PAGE — dark mode + student info in one place (also the default fallback / old profile view) */
+          <div className="dashboard-body settings-page">
+            <h1 className="grid-heading-title">Cài đặt</h1>
+            <p className="grid-heading-desc">
+              Tùy chỉnh giao diện và xem thông tin tài khoản học viên của bạn.
+            </p>
+
+            {/* Section: Giao diện (Dark mode) */}
+            <section className="settings-card">
+              <h2 className="settings-card-title">🎨 Giao diện</h2>
+              <div className="settings-row">
+                <div className="settings-row-text">
+                  <span className="settings-row-label">Chế độ tối (Dark mode)</span>
+                  <span className="settings-row-desc">
+                    Giảm độ chói, dễ chịu cho mắt khi học vào buổi tối.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className={`theme-toggle ${darkMode ? 'on' : ''}`}
+                  onClick={toggleDarkMode}
+                  role="switch"
+                  aria-checked={darkMode}
+                  aria-label="Bật/tắt chế độ tối"
+                >
+                  <span className="theme-toggle-track">
+                    <span className="theme-toggle-icon sun">☀️</span>
+                    <span className="theme-toggle-icon moon">🌙</span>
+                    <span className="theme-toggle-thumb" />
+                  </span>
+                </button>
+              </div>
+            </section>
+
+            {/* Section: Thông tin học viên */}
+            <section className="settings-card">
+              <h2 className="settings-card-title">👤 Thông tin học viên</h2>
+
+              <div className="settings-profile-head">
+                <div className="settings-profile-avatar">{firstLetter}</div>
+                <div className="settings-profile-id">
+                  <span className="settings-profile-name">{displayName}</span>
+                  <span className="settings-profile-role">{roleName}</span>
+                </div>
+              </div>
+
+              <div className="status-box settings-status-box">
+                <div className="status-item">
+                  <span className="status-label">Họ và tên:</span>
+                  <span className="status-value settings-status-strong">{displayName}</span>
+                </div>
+                <div className="status-item">
+                  <span className="status-label">Số điện thoại:</span>
+                  <span className="status-value settings-status-strong">{phoneText}</span>
+                </div>
+                <div className="status-item">
+                  <span className="status-label">Địa chỉ:</span>
+                  <span className="status-value settings-status-strong">{addressText}</span>
+                </div>
+                <div className="status-item">
+                  <span className="status-label">Email đăng nhập:</span>
+                  <span className="status-value">{emailText}</span>
+                </div>
+                <div className="status-item">
+                  <span className="status-label">Số bài học đã xem:</span>
+                  <span className="status-value success" style={{ fontWeight: '700' }}>
+                    {watchedIds.length} / {videos.length} bài học
+                  </span>
+                </div>
+                <div className="status-item">
+                  <span className="status-label">Trạng thái dữ liệu:</span>
+                  <span className="status-value success" style={{ fontWeight: '700' }}>
+                    {fetching ? '⏳ Đang đồng bộ...' : '🟢 Trực tiếp từ Live MongoDB'}
+                  </span>
                 </div>
               </div>
             )}
@@ -1056,6 +1297,10 @@ function Dashboard({ user, setUser, handleLogout, showToast }) {
                 </div>
               </div>
             </div>
+              <button className="logout-btn settings-logout-btn" onClick={handleLogout}>
+                Đăng xuất tài khoản
+              </button>
+            </section>
           </div>
         )}
       </main>

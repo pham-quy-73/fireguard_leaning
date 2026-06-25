@@ -12,6 +12,38 @@ function App() {
   // Notification Toast state
   const [notification, setNotification] = useState(null);
 
+  // Real student count from DB (for the login banner badge)
+  const [totalStudents, setTotalStudents] = useState(null);
+
+  // Số lượng bài học thật, lấy từ DB qua GET /api/videos
+  const [videoCount, setVideoCount] = useState(null);
+
+  // Dark mode preference — applied app-wide and persisted across sessions
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('darkMode') === 'true');
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark-mode', darkMode);
+    localStorage.setItem('darkMode', darkMode);
+  }, [darkMode]);
+
+  const toggleDarkMode = () => setDarkMode((v) => !v);
+
+  useEffect(() => {
+    axios.get(`${API_BASE_URL}/api/auth/admin/stats`)
+      .then((res) => {
+        if (res.data?.success) setTotalStudents(res.data.totalStudents);
+      })
+      .catch(() => { /* ignore: badge falls back gracefully */ });
+
+    axios.get(`${API_BASE_URL}/api/videos`)
+      .then((res) => {
+        if (res.data?.success && Array.isArray(res.data.videos)) {
+          setVideoCount(res.data.videos.length);
+        }
+      })
+      .catch(() => { /* ignore: stat falls back gracefully */ });
+  }, []);
+
   const showToast = (message, type = 'success') => {
     setNotification({ message, type });
     setTimeout(() => {
@@ -55,6 +87,7 @@ function App() {
         <div className="stats-row">
           <div className="stat-item">
             <span className="stat-value">100+</span>
+            <span className="stat-value">{videoCount ?? '...'}</span>
             <span className="stat-label">Bài học video</span>
           </div>
           <div className="stat-divider"></div>
@@ -84,6 +117,12 @@ function App() {
           setUser={setUser}
           handleLogout={handleLogout} 
           showToast={showToast} 
+        <Dashboard
+          user={user}
+          handleLogout={handleLogout}
+          showToast={showToast}
+          darkMode={darkMode}
+          toggleDarkMode={toggleDarkMode}
         />
       ) : (
         <div className="fullscreen-layout">

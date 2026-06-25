@@ -1745,6 +1745,8 @@ body {
   font-size: 0.75rem;
   transform: rotate(-10deg);
   box-shadow: 0 4px 10px rgba(180, 83, 9, 0.15);
+}
+
 @media (max-width: 640px) {
   .quiz-lesson-grid {
     grid-template-columns: 1fr;

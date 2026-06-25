@@ -112,11 +112,6 @@ function App() {
       )}
 
       {isDashboardView ? (
-        <Dashboard 
-          user={user} 
-          setUser={setUser}
-          handleLogout={handleLogout} 
-          showToast={showToast} 
         <Dashboard
           user={user}
           handleLogout={handleLogout}

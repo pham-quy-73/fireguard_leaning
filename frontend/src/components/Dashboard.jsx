@@ -785,7 +785,7 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
             </div>
           )
         ) : dashboardView === 'admin' ? (
-          <AdminPanel showToast={showToast} />
+          <AdminPanel user={activeUser} showToast={showToast} />
         ) : (
           /* SETTINGS PAGE — dark mode + student info in one place (also the default fallback / old profile view) */
           <div className="dashboard-body settings-page">

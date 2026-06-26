@@ -9,10 +9,94 @@ const allCourseVideos = [
   { id: 3, title: "Sơ cứu bỏng nhiệt và ngạt khói tại chỗ trong 5 phút đầu" }
 ];
 
-function AdminPanel({ showToast }) {
+// Danh mục bài học -> categoryKey (dùng cho class CSS tô màu thẻ tag)
+const CATEGORY_OPTIONS = [
+  { label: 'Cơ bản', key: 'co-ban' },
+  { label: 'Thoát hiểm', key: 'thoat-hiem' },
+  { label: 'Kỹ thuật', key: 'ky-thuat' }
+];
+
+const EMPTY_VIDEO_FORM = {
+  title: '',
+  category: 'Cơ bản',
+  videoUrl: '',
+  thumbnail: '',
+  description: '',
+  duration: ''
+};
+
+// Style dùng chung cho các ô nhập của form thêm video
+const adminInputStyle = {
+  width: '100%',
+  padding: '10px 12px',
+  border: '1.5px solid #cbd5e1',
+  borderRadius: '8px',
+  fontSize: '0.88rem',
+  color: '#1e293b',
+  outline: 'none',
+  backgroundColor: '#ffffff',
+  boxSizing: 'border-box'
+};
+
+function AdminPanel({ user, showToast }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // State cho form thêm video mới
+  const [videoForm, setVideoForm] = useState(EMPTY_VIDEO_FORM);
+  const [submittingVideo, setSubmittingVideo] = useState(false);
+
+  const handleVideoFormChange = (field, value) => {
+    setVideoForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleAddVideo = async (e) => {
+    e.preventDefault();
+
+    const userId = user?.id || user?._id;
+    if (!userId) {
+      showToast('Không xác định được tài khoản quản trị. Vui lòng đăng nhập lại!', 'error');
+      return;
+    }
+    if (!videoForm.title.trim()) {
+      showToast('Vui lòng nhập tiêu đề bài học!', 'error');
+      return;
+    }
+    if (!videoForm.videoUrl.trim()) {
+      showToast('Vui lòng nhập đường dẫn (URL) video!', 'error');
+      return;
+    }
+
+    const categoryKey =
+      CATEGORY_OPTIONS.find((c) => c.label === videoForm.category)?.key || 'co-ban';
+
+    setSubmittingVideo(true);
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/videos`, {
+        userId,
+        title: videoForm.title,
+        category: videoForm.category,
+        categoryKey,
+        videoUrl: videoForm.videoUrl,
+        thumbnail: videoForm.thumbnail,
+        description: videoForm.description,
+        duration: videoForm.duration,
+        isNew: true
+      });
+
+      if (response.data.success) {
+        showToast(response.data.message || 'Đã thêm bài học mới!', 'success');
+        setVideoForm(EMPTY_VIDEO_FORM);
+        fetchAdminStats(); // Làm mới thống kê sau khi thêm
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Không thể thêm bài học. Vui lòng thử lại!';
+      showToast(msg, 'error');
+    } finally {
+      setSubmittingVideo(false);
+    }
+  };
 
   const fetchAdminStats = async () => {
     setLoading(true);
@@ -73,6 +157,110 @@ function AdminPanel({ showToast }) {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Add Video block — admin tạo bài học mới, lưu thẳng vào MongoDB */}
+      <div className="admin-table-wrapper" style={{
+        backgroundColor: '#ffffff',
+        border: '1px solid #e2e8f0',
+        borderRadius: '16px',
+        padding: '24px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.01)'
+      }}>
+        <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#1e293b', marginBottom: '6px' }}>
+          ➕ Thêm bài học mới
+        </h3>
+        <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '18px' }}>
+          Video mới sẽ xuất hiện ngay trong kho khóa học của học viên sau khi lưu.
+        </p>
+
+        <form onSubmit={handleAddVideo} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Hàng 1: tiêu đề + danh mục */}
+          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+            <div style={{ flex: '2', minWidth: '240px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '0.78rem', fontWeight: '700', color: '#475569' }}>Tiêu đề bài học *</label>
+              <input
+                type="text"
+                value={videoForm.title}
+                onChange={(e) => handleVideoFormChange('title', e.target.value)}
+                placeholder="VD: Kỹ năng dùng bình chữa cháy CO2"
+                disabled={submittingVideo}
+                style={adminInputStyle}
+              />
+            </div>
+            <div style={{ flex: '1', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '0.78rem', fontWeight: '700', color: '#475569' }}>Danh mục</label>
+              <select
+                value={videoForm.category}
+                onChange={(e) => handleVideoFormChange('category', e.target.value)}
+                disabled={submittingVideo}
+                style={adminInputStyle}
+              >
+                {CATEGORY_OPTIONS.map((c) => (
+                  <option key={c.key} value={c.label}>{c.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Hàng 2: URL video + thumbnail */}
+          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+            <div style={{ flex: '2', minWidth: '240px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '0.78rem', fontWeight: '700', color: '#475569' }}>Đường dẫn video (URL / embed) *</label>
+              <input
+                type="text"
+                value={videoForm.videoUrl}
+                onChange={(e) => handleVideoFormChange('videoUrl', e.target.value)}
+                placeholder="https://fireguards.h5p.com/content/.../embed"
+                disabled={submittingVideo}
+                style={adminInputStyle}
+              />
+            </div>
+            <div style={{ flex: '1', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '0.78rem', fontWeight: '700', color: '#475569' }}>Ảnh thumbnail (tùy chọn)</label>
+              <input
+                type="text"
+                value={videoForm.thumbnail}
+                onChange={(e) => handleVideoFormChange('thumbnail', e.target.value)}
+                placeholder="URL ảnh hoặc /tenanh.png"
+                disabled={submittingVideo}
+                style={adminInputStyle}
+              />
+            </div>
+          </div>
+
+          {/* Hàng 3: mô tả */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '0.78rem', fontWeight: '700', color: '#475569' }}>Mô tả chi tiết (tùy chọn)</label>
+            <textarea
+              rows="3"
+              value={videoForm.description}
+              onChange={(e) => handleVideoFormChange('description', e.target.value)}
+              placeholder="Tóm tắt nội dung bài học, tình huống mô phỏng, mục tiêu kỹ năng..."
+              disabled={submittingVideo}
+              style={{ ...adminInputStyle, resize: 'vertical', fontFamily: 'inherit' }}
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={submittingVideo}
+            style={{
+              alignSelf: 'flex-start',
+              padding: '10px 22px',
+              backgroundColor: submittingVideo ? '#94a3b8' : '#c2182c',
+              border: 'none',
+              color: 'white',
+              fontWeight: '700',
+              fontSize: '0.85rem',
+              borderRadius: '8px',
+              cursor: submittingVideo ? 'not-allowed' : 'pointer',
+              boxShadow: '0 4px 10px rgba(194, 24, 44, 0.15)'
+            }}
+          >
+            {submittingVideo ? 'Đang lưu...' : '＋ Thêm bài học vào kho'}
+          </button>
+        </form>
       </div>
 
       {/* Grid of cards */}

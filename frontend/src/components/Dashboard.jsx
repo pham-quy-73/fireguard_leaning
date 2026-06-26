@@ -3,6 +3,9 @@ import axios from 'axios';
 import Classroom from './Classroom';
 import AdminPanel from './AdminPanel';
 import Forum from './CommentsPanel';
+
+import Announcements from './Announcements';
+import Quiz from './Quiz';
 import { API_BASE_URL } from '../config';
 import {
   PlayMenuIcon,
@@ -22,8 +25,11 @@ import {
   MapMarkerIcon
 } from './Icons';
 
-// MOCK VIDEOS
-const allVideos = [
+
+// Dữ liệu dự phòng dùng khi không gọi được API (mất mạng / backend chưa chạy).
+// Nguồn chính thức là MongoDB qua GET /api/videos — xem state `videos` bên dưới.
+const FALLBACK_VIDEOS = [
+
   {
     id: 1,
     title: "Mô phỏng tình huống cháy chung cư mini và kỹ năng thoát nạn an toàn.",
@@ -31,7 +37,9 @@ const allVideos = [
     categoryKey: "co-ban",
     defaultPercentage: 45,
     isNew: true,
+
     thumbnail: "Chaychungcu_Thumbnail.png",
+   
     videoUrl: "https://fireguards.h5p.com/content/1292915182618596269/embed",
     description: `Bài học này tái hiện một tình huống cháy thực tế tại một chung cư mini, nơi tầng 1 chứa nhiều xe máy và xe điện đang sạc, chỉ có một cầu thang thoát nạn duy nhất và hệ thống báo cháy không hoạt động. 
 Người xem sẽ vào vai Nam, một sinh viên sống ở tầng 3, và phải đưa ra những quyết định quan trọng trong từng giai đoạn của sự cố.Mỗi lựa chọn đều dẫn đến những hậu quả khác nhau, giúp người xem hiểu rõ các nguy cơ thường gặp và học được cách ứng phó đúng khi xảy ra hỏa hoạn. 
@@ -46,7 +54,9 @@ Mục đích của bài học là nâng cao nhận thức và kỹ năng thoát 
     views: "856 lượt xem • 5 ngày trước",
     defaultPercentage: 0,
     isNew: false,
+
     thumbnail: "Chaybinhnonglanh_Thumbnail.png",
+
     videoUrl: "https://fireguards.h5p.com/content/1292915968955906289/embed",
     description: `Giữa đêm đông Hà Nội dưới 15°C, Nam (25 tuổi, kỹ sư phần mềm) đang nằm lướt điện thoại trong phòng trọ 20m² sau ca làm việc mệt mỏi. 
     Bất ngờ, chiếc bình nóng lạnh cũ trong nhà tắm phát nổ lớn, bắn ra tia lửa điện và bốc cháy dữ dội. 
@@ -62,10 +72,13 @@ Mục đích của bài học là nâng cao nhận thức và kỹ năng thoát 
     views: "2.4k lượt xem • 1 tuần trước",
     defaultPercentage: 85,
     isNew: false,
+
     thumbnail: "Chayamdunnuoc_Thumbnail.png",
+
     videoUrl: "https://fireguards.h5p.com/content/1292916045740892609/embed",
     description: `Nhận biết sớm cháy điện, tránh sai lầm hắt nước gây giật, lập tức ngắt cầu dao tổng, dùng bình chữa cháy chuyên dụng (khí CO2 hoặc bột) và nhanh chóng thoát hiểm để bảo vệ tính mạng`
   },
+
 
 ];
 
@@ -108,8 +121,12 @@ const INITIAL_NOTIFICATIONS = [
   },
 ];
 
-function Dashboard({ user, handleLogout, showToast }) {
-  const [dashboardView, setDashboardView] = useState('forum'); // 'forum' | 'videos' | 'profile' | 'admin'
+function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) {
+  const [dashboardView, setDashboardView] = useState('discussion'); // 'announcements' | 'discussion' | 'videos' | 'quiz' | 'profile' | 'admin' | 'settings'
+  // Sidebar expandable groups
+  const [forumGroupOpen, setForumGroupOpen] = useState(true);
+  const [learnGroupOpen, setLearnGroupOpen] = useState(true);
+
   const [activeTab, setActiveTab] = useState('Tất cả');
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -129,6 +146,31 @@ function Dashboard({ user, handleLogout, showToast }) {
 
   // Classroom video details state
   const [activeClassroomVideo, setActiveClassroomVideo] = useState(null);
+
+  // Danh sách video lấy trực tiếp từ MongoDB (GET /api/videos).
+  // Thêm/xóa video trong DB sẽ phản ánh ngay khi tải lại trang.
+  const [videos, setVideos] = useState([]);
+  const [videosLoading, setVideosLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    axios.get(`${API_BASE_URL}/api/videos`)
+      .then((res) => {
+        if (!active) return;
+        if (res.data?.success && Array.isArray(res.data.videos) && res.data.videos.length) {
+          setVideos(res.data.videos);
+        } else {
+          setVideos(FALLBACK_VIDEOS); // DB rỗng hoặc shape lạ -> dùng dự phòng
+        }
+      })
+      .catch(() => {
+        if (active) setVideos(FALLBACK_VIDEOS); // mất mạng / backend chưa chạy
+      })
+      .finally(() => {
+        if (active) setVideosLoading(false);
+      });
+    return () => { active = false; };
+  }, []);
 
   // Lock body scroll when sidebar drawer is open on mobile
   useEffect(() => {
@@ -160,13 +202,18 @@ function Dashboard({ user, handleLogout, showToast }) {
     setNotifOpen(false);
     // route to target view if any
     if (n.target === 'forum') {
-      setDashboardView('forum');
+
+
+      setDashboardView('discussion');
+
       setActiveClassroomVideo(null);
     } else if (n.target === 'videos') {
       setDashboardView('videos');
       setActiveClassroomVideo(null);
     } else if (n.target === 'profile') {
-      setDashboardView('profile');
+
+      setDashboardView('settings');
+
       setActiveClassroomVideo(null);
     }
     closeSidebar();
@@ -235,7 +282,7 @@ function Dashboard({ user, handleLogout, showToast }) {
   // Sync profile details if changing tabs to profile to always keep accurate numbers
   useEffect(() => {
     const activeId = user?.id || user?._id;
-    if (dashboardView === 'profile' && activeId) {
+    if (dashboardView === 'settings' && activeId) {
       axios.get(`${API_BASE_URL}/api/auth/profile/${activeId}`)
         .then(response => {
           if (response.data.success) {
@@ -294,32 +341,28 @@ function Dashboard({ user, handleLogout, showToast }) {
   const roleName = isAdmin ? 'Quản trị viên FIREGUARD' : 'Học viên';
   const firstLetter = displayName.charAt(0).toUpperCase();
 
-  const handleSidebarVideosClick = () => {
-    setDashboardView('videos');
-    setActiveClassroomVideo(null); // Return to catalog grid view
-    closeSidebar();
-  };
+
+
 
   const handleSidebarAdminClick = () => {
     setDashboardView('admin');
     closeSidebar();
   };
 
-  const handleSidebarForumClick = () => {
-    setDashboardView('forum');
+
+  // Generic navigation helper for the new grouped sidebar items
+  const goToView = (view) => {
+    setDashboardView(view);
+
     setActiveClassroomVideo(null);
     closeSidebar();
   };
 
-  // Clicking the brand/logo returns to the home view (Diễn đàn)
+
+  // Clicking the brand/logo returns to the home view (Thảo luận)
   const handleGoHome = () => {
-    setDashboardView('forum');
-    setActiveClassroomVideo(null);
-    closeSidebar();
-  };
+    setDashboardView('discussion');
 
-  const handleSidebarProfileClick = () => {
-    setDashboardView('profile');
     setActiveClassroomVideo(null);
     closeSidebar();
   };
@@ -424,99 +467,74 @@ function Dashboard({ user, handleLogout, showToast }) {
         </div>
 
         <nav className="sidebar-menu">
-          <div
-            className={`sidebar-item ${dashboardView === 'forum' ? 'active' : ''}`}
-            onClick={handleSidebarForumClick}
-          >
-            <ChatBubbleIcon />
-            Diễn đàn
-            <span className="sidebar-item-dot" title="Đang trực tiếp"></span>
-          </div>
 
-          <div
-            className={`sidebar-item ${dashboardView === 'videos' ? 'active' : ''}`}
-            onClick={handleSidebarVideosClick}
-          >
-            <PlayMenuIcon />
-            Danh sách video
-          </div>
+          {/* GROUP: Diễn đàn */}
+          <div className="sidebar-group">
+            <div
+              className="sidebar-group-header"
+              onClick={() => setForumGroupOpen((v) => !v)}
+              role="button"
+              tabIndex={0}
+            >
+              <ChatBubbleIcon />
+              <span className="sidebar-group-title">Diễn đàn</span>
+              <span className={`sidebar-group-caret ${forumGroupOpen ? 'open' : ''}`}>▾</span>
+            </div>
 
-          <div
-            ref={notifTriggerRef}
-            className={`sidebar-item sidebar-item-notif ${notifOpen ? 'active' : ''}`}
-            onClick={toggleNotifPanel}
-            role="button"
-            tabIndex={0}
-          >
-            <NotifyBellIcon />
-            Thông báo
-            {unreadCount > 0 && (
-              <span className="sidebar-item-badge">{unreadCount}</span>
+            {forumGroupOpen && (
+              <div className="sidebar-subitems">
+                <div
+                  className={`sidebar-subitem ${dashboardView === 'announcements' ? 'active' : ''}`}
+                  onClick={() => goToView('announcements')}
+                >
+                  <span className="sidebar-subitem-icon">📢</span>
+                  Thông báo
+                </div>
+                <div
+                  className={`sidebar-subitem ${dashboardView === 'discussion' ? 'active' : ''}`}
+                  onClick={() => goToView('discussion')}
+                >
+                  <span className="sidebar-subitem-icon">💬</span>
+                  Thảo luận
+                  <span className="sidebar-item-dot" title="Đang trực tiếp"></span>
+                </div>
+              </div>
             )}
           </div>
 
-          {notifOpen && (
+          {/* GROUP: Bài học */}
+          <div className="sidebar-group">
             <div
-              ref={notifPanelRef}
-              className="notif-panel"
-              role="dialog"
-              aria-label="Danh sách thông báo"
+              className="sidebar-group-header"
+              onClick={() => setLearnGroupOpen((v) => !v)}
+              role="button"
+              tabIndex={0}
             >
-              <div className="notif-panel-header">
-                <div className="notif-panel-title-row">
-                  <span className="notif-panel-title">Thông báo</span>
-                  <span className="notif-panel-count">
-                    {unreadCount > 0
-                      ? `${unreadCount} chưa đọc`
-                      : 'Tất cả đã đọc'}
-                  </span>
-                </div>
-                {unreadCount > 0 && (
-                  <button
-                    type="button"
-                    className="notif-mark-all"
-                    onClick={handleMarkAllRead}
-                  >
-                    Đánh dấu đã đọc
-                  </button>
-                )}
-              </div>
-
-              <div className="notif-list">
-                {notifications.length === 0 ? (
-                  <div className="notif-empty">Không có thông báo nào.</div>
-                ) : (
-                  notifications.map((n) => (
-                    <div
-                      key={n.id}
-                      className={`notif-item ${n.isRead ? 'is-read' : 'is-unread'}`}
-                      onClick={() => handleNotifClick(n)}
-                      role="button"
-                      tabIndex={0}
-                    >
-                      <span className="notif-item-icon">{n.icon}</span>
-                      <div className="notif-item-body">
-                        <span className="notif-item-title">{n.title}</span>
-                        <span className="notif-item-desc">{n.desc}</span>
-                        <span className="notif-item-time">{n.time}</span>
-                      </div>
-                      {!n.isRead && <span className="notif-item-dot"></span>}
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <div className="notif-panel-footer">
-                <button
-                  type="button"
-                  className="notif-close-btn"
-                  onClick={() => setNotifOpen(false)}
-                >
-                  Đóng
-                </button>
-              </div>
+              <PlayMenuIcon />
+              <span className="sidebar-group-title">Bài học</span>
+              <span className={`sidebar-group-caret ${learnGroupOpen ? 'open' : ''}`}>▾</span>
             </div>
-          )}
+
+            {learnGroupOpen && (
+              <div className="sidebar-subitems">
+                <div
+                  className={`sidebar-subitem ${dashboardView === 'videos' ? 'active' : ''}`}
+                  onClick={() => goToView('videos')}
+                >
+                  <span className="sidebar-subitem-icon">📺</span>
+                  Danh sách video
+                </div>
+                <div
+                  className={`sidebar-subitem ${dashboardView === 'quiz' ? 'active' : ''}`}
+                  onClick={() => goToView('quiz')}
+                >
+                  <span className="sidebar-subitem-icon">📝</span>
+                  Quiz
+                </div>
+              </div>
+            )}
+          </div>
+
 
           {isAdmin && (
             <div
@@ -535,6 +553,24 @@ function Dashboard({ user, handleLogout, showToast }) {
           )}
 
           <div
+
+            className={`sidebar-item ${dashboardView === 'settings' ? 'active' : ''}`}
+            onClick={() => goToView('settings')}
+            role="button"
+            tabIndex={0}
+            style={{
+              borderLeft:
+                dashboardView === 'settings'
+                  ? '3px solid var(--primary-red)'
+                  : '3px solid transparent'
+            }}
+          >
+            <SettingsGearIcon />
+            Cài đặt
+          </div>
+
+          <div
+
             ref={contactTriggerRef}
             className={`sidebar-item ${contactOpen ? 'active' : ''}`}
             onClick={toggleContactPanel}
@@ -626,8 +662,19 @@ function Dashboard({ user, handleLogout, showToast }) {
           </button>
         </header>
 
-        {dashboardView === 'forum' ? (
+
+        {dashboardView === 'announcements' ? (
+          <Announcements user={activeUser} showToast={showToast} />
+        ) : dashboardView === 'discussion' ? (
           <Forum user={activeUser} showToast={showToast} />
+        ) : dashboardView === 'quiz' ? (
+          <Quiz
+            videos={videos}
+            watchedIds={watchedIds}
+            onComplete={handleCompleteVideo}
+            showToast={showToast}
+          />
+
         ) : dashboardView === 'videos' ? (
           /* Render Classroom page or course catalog list */
           activeClassroomVideo ? (
@@ -659,6 +706,11 @@ function Dashboard({ user, handleLogout, showToast }) {
               </div> */}
 
               {/* Catalog Grid */}
+              {videosLoading ? (
+                <p className="grid-heading-desc">Đang tải danh sách bài học từ cơ sở dữ liệu...</p>
+              ) : getFilteredVideos().length === 0 ? (
+                <p className="grid-heading-desc">Chưa có bài học nào trong cơ sở dữ liệu.</p>
+              ) : (
               <div className="video-catalog-grid">
                 {getFilteredVideos().map((video) => {
                   const isWatched = watchedIds.includes(video.id);
@@ -725,60 +777,96 @@ function Dashboard({ user, handleLogout, showToast }) {
                   );
                 })}
               </div>
+              )}
 
             </div>
           )
         ) : dashboardView === 'admin' ? (
           <AdminPanel showToast={showToast} />
         ) : (
-          // Live Database profile card rendering
-          <div className="dashboard-body" style={{ alignItems: 'center', justifyContent: 'center', padding: '40px 0' }}>
-            <div className="dashboard-card" style={{ maxWidth: '650px', width: '100%', padding: '40px' }}>
-              <div className="dash-avatar">🔥</div>
-              <h1 className="dash-title">Hồ sơ học tập PCCC</h1>
-              <p className="dash-msg">
-                {fetching ? "Đang đồng bộ từ Database..." : "Xem thông tin cá nhân được lấy thời gian thực từ cơ sở dữ liệu MongoDB."}
-              </p>
 
-              <div className="status-box" style={{ textAlign: 'left', marginTop: '20px', marginBottom: '30px' }}>
+          /* SETTINGS PAGE — dark mode + student info in one place (also the default fallback / old profile view) */
+          <div className="dashboard-body settings-page">
+            <h1 className="grid-heading-title">Cài đặt</h1>
+            <p className="grid-heading-desc">
+              Tùy chỉnh giao diện và xem thông tin tài khoản học viên của bạn.
+            </p>
+
+            {/* Section: Giao diện (Dark mode) */}
+            <section className="settings-card">
+              <h2 className="settings-card-title">🎨 Giao diện</h2>
+              <div className="settings-row">
+                <div className="settings-row-text">
+                  <span className="settings-row-label">Chế độ tối (Dark mode)</span>
+                  <span className="settings-row-desc">
+                    Giảm độ chói, dễ chịu cho mắt khi học vào buổi tối.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className={`theme-toggle ${darkMode ? 'on' : ''}`}
+                  onClick={toggleDarkMode}
+                  role="switch"
+                  aria-checked={darkMode}
+                  aria-label="Bật/tắt chế độ tối"
+                >
+                  <span className="theme-toggle-track">
+                    <span className="theme-toggle-icon sun">☀️</span>
+                    <span className="theme-toggle-icon moon">🌙</span>
+                    <span className="theme-toggle-thumb" />
+                  </span>
+                </button>
+              </div>
+            </section>
+
+            {/* Section: Thông tin học viên */}
+            <section className="settings-card">
+              <h2 className="settings-card-title">👤 Thông tin học viên</h2>
+
+              <div className="settings-profile-head">
+                <div className="settings-profile-avatar">{firstLetter}</div>
+                <div className="settings-profile-id">
+                  <span className="settings-profile-name">{displayName}</span>
+                  <span className="settings-profile-role">{roleName}</span>
+                </div>
+              </div>
+
+              <div className="status-box settings-status-box">
                 <div className="status-item">
                   <span className="status-label">Họ và tên:</span>
-                  <span className="status-value" style={{ fontWeight: '600', color: '#1e293b' }}>
-                    {displayName}
-                  </span>
+                  <span className="status-value settings-status-strong">{displayName}</span>
                 </div>
                 <div className="status-item">
                   <span className="status-label">Số điện thoại:</span>
-                  <span className="status-value" style={{ fontWeight: '600', color: '#1e293b' }}>
-                    {phoneText}
-                  </span>
+                  <span className="status-value settings-status-strong">{phoneText}</span>
                 </div>
                 <div className="status-item">
                   <span className="status-label">Địa chỉ:</span>
-                  <span className="status-value" style={{ fontWeight: '600', color: '#1e293b' }}>
-                    {addressText}
-                  </span>
+                  <span className="status-value settings-status-strong">{addressText}</span>
                 </div>
                 <div className="status-item">
                   <span className="status-label">Email đăng nhập:</span>
-                  <span className="status-value" style={{ color: '#64748b' }}>{emailText}</span>
+                  <span className="status-value">{emailText}</span>
                 </div>
                 <div className="status-item">
                   <span className="status-label">Số bài học đã xem:</span>
                   <span className="status-value success" style={{ fontWeight: '700' }}>
-                    {watchedIds.length} / 6 bài học
+                    {watchedIds.length} / {videos.length} bài học
                   </span>
                 </div>
                 <div className="status-item">
                   <span className="status-label">Trạng thái dữ liệu:</span>
                   <span className="status-value success" style={{ fontWeight: '700' }}>
-                    🟢 Trực tiếp từ Live MongoDB
+                    {fetching ? '⏳ Đang đồng bộ...' : '🟢 Trực tiếp từ Live MongoDB'}
                   </span>
                 </div>
               </div>
 
-              <button className="logout-btn" onClick={handleLogout}>Đăng xuất tài khoản</button>
-            </div>
+              <button className="logout-btn settings-logout-btn" onClick={handleLogout}>
+                Đăng xuất tài khoản
+              </button>
+            </section>
+
           </div>
         )}
       </main>

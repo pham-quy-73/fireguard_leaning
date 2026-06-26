@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import './App.css';
 import { FiretruckIcon } from './components/Icons';
 import Homepage from './components/Homepage';
+import { API_BASE_URL } from './config';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
@@ -13,12 +15,45 @@ function App() {
   // Notification Toast state
   const [notification, setNotification] = useState(null);
 
+  // Real student count from DB (for the login banner badge)
+  const [totalStudents, setTotalStudents] = useState(null);
+
+  // Số lượng bài học thật, lấy từ DB qua GET /api/videos
+  const [videoCount, setVideoCount] = useState(null);
+
+  // Dark mode preference — applied app-wide and persisted across sessions
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('darkMode') === 'true');
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark-mode', darkMode);
+    localStorage.setItem('darkMode', darkMode);
+  }, [darkMode]);
+
+  const toggleDarkMode = () => setDarkMode((v) => !v);
+
+  useEffect(() => {
+    axios.get(`${API_BASE_URL}/api/auth/admin/stats`)
+      .then((res) => {
+        if (res.data?.success) setTotalStudents(res.data.totalStudents);
+      })
+      .catch(() => { /* ignore: badge falls back gracefully */ });
+
+    axios.get(`${API_BASE_URL}/api/videos`)
+      .then((res) => {
+        if (res.data?.success && Array.isArray(res.data.videos)) {
+          setVideoCount(res.data.videos.length);
+        }
+      })
+      .catch(() => { /* ignore: stat falls back gracefully */ });
+  }, []);
+
   const showToast = (message, type = 'success') => {
     setNotification({ message, type });
     setTimeout(() => {
       setNotification(null);
     }, 4500);
   };
+
 
   // Check user cookies/local storage session on mount
   useEffect(() => {
@@ -45,7 +80,9 @@ function App() {
         <div className="badge-row">
           <div className="banner-badge">
             <span className="badge-dot"></span>
-            Tham gia cùng +5000 học viên
+            {totalStudents !== null
+              ? `Tham gia cùng ${totalStudents} học viên`
+              : 'Tham gia cùng cộng đồng học viên'}
           </div>
         </div>
         <h2 className="banner-heading">Bảo vệ bản thân và gia đình qua kiến thức chuẩn xác</h2>
@@ -55,7 +92,7 @@ function App() {
         
         <div className="stats-row">
           <div className="stat-item">
-            <span className="stat-value">100+</span>
+            <span className="stat-value">{videoCount ?? '...'}</span>
             <span className="stat-label">Bài học video</span>
           </div>
           <div className="stat-divider"></div>
@@ -84,6 +121,10 @@ function App() {
           user={user}
           handleLogout={handleLogout}
           showToast={showToast}
+
+          darkMode={darkMode}
+          toggleDarkMode={toggleDarkMode}
+
         />
       ) : view === 'home' ? (
         <Homepage setView={setView} />

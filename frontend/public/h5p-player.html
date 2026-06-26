@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FIREGUARD Local H5P Player</title>
+  <!-- Load H5P CSS from jsDelivr CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/h5p-standalone/dist/styles/h5p.css">
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      overflow: auto;
+    }
+    #h5p-container {
+      width: 100%;
+      min-height: 100vh;
+      box-sizing: border-box;
+      background: white;
+    }
+    /* Customize the player slightly for a premium feel */
+    .h5p-content {
+      border: none !important;
+      box-shadow: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="h5p-container"></div>
+
+  <!-- Load H5P standalone scripts from jsDelivr CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/h5p-standalone/dist/main.bundle.js" charset="UTF-8"></script>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      // Parse query string parameters (e.g. ?id=bai_1)
+      const params = new URLSearchParams(window.location.search);
+      const lessonId = params.get('id') || 'bai_1';
+      
+      // Parse state string if available (encoded JSON string)
+      const stateParam = params.get('state');
+      let contentUserData = [];
+      if (stateParam) {
+        try {
+          const decodedState = decodeURIComponent(stateParam);
+          // Verify it's valid JSON
+          JSON.parse(decodedState);
+          contentUserData = [
+            {
+              state: decodedState,
+              subContentId: 0,
+              dataType: 'state'
+            }
+          ];
+          console.log("Restoring H5P state for lesson " + lessonId);
+        } catch (e) {
+          console.error("Error parsing H5P state:", e);
+        }
+      }
+      
+      const el = document.getElementById('h5p-container');
+      
+      const options = {
+        h5pJsonPath: '/' + lessonId,
+        frameJs: 'https://cdn.jsdelivr.net/npm/h5p-standalone/dist/frame.bundle.js',
+        frameCss: 'https://cdn.jsdelivr.net/npm/h5p-standalone/dist/styles/h5p.css',
+        contentUserData: contentUserData
+      };
+      
+      let mainInstance = null;
+      
+      // Initialize the standalone H5P player
+      new H5PStandalone.H5P(el, options).then(function (h5p) {
+        mainInstance = h5p || (window.H5P && window.H5P.instances && window.H5P.instances[0]);
+        setupXAPI();
+      }).catch(function (error) {
+        console.error("Lỗi nạp H5P:", error);
+      });
+
+      function setupXAPI() {
+        if (window.H5P && window.H5P.externalDispatcher) {
+          if (!window.h5pXApiListenerAdded) {
+            window.h5pXApiListenerAdded = true;
+            window.H5P.externalDispatcher.on('xAPI', function (event) {
+              const statement = event.data.statement;
+              const verbId = statement?.verb?.id || '';
+
+              let state = null;
+              if (mainInstance && typeof mainInstance.getCurrentState === 'function') {
+                try {
+                  state = mainInstance.getCurrentState();
+                } catch (e) {
+                  console.warn("Could not get current H5P state:", e);
+                }
+              }
+
+              // Calculate percentage
+              let percentage = 0;
+              if (verbId.endsWith('/completed') || verbId === 'completed') {
+                percentage = 100;
+              } else {
+                if (state && state.video) {
+                  if (state.video.progress !== undefined) {
+                    percentage = Math.round(state.video.progress);
+                  } else if (state.video.time !== undefined && mainInstance.video && typeof mainInstance.video.getDuration === 'function') {
+                    const duration = mainInstance.video.getDuration();
+                    if (duration > 0) {
+                      percentage = Math.round((state.video.time / duration) * 100);
+                    }
+                  }
+                }
+                
+                // Fallback: if user answers an interaction, ensure they get at least some progress
+                if (!percentage || percentage === 0) {
+                  if (verbId.endsWith('/answered') || verbId === 'answered') {
+                    percentage = 50;
+                  }
+                }
+              }
+
+              if (window.parent) {
+                window.parent.postMessage({
+                  type: 'H5P_XAPI',
+                  lessonId: lessonId,
+                  statement: statement,
+                  percentage: percentage,
+                  state: state ? JSON.stringify(state) : null
+                }, '*');
+              }
+            });
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>

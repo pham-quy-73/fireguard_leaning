@@ -1,4 +1,11 @@
 const mongoose = require('mongoose');
+const dns = require('dns');
+
+// Force a reliable public DNS resolver for Node's c-ares.
+// Some network adapters (e.g. Ethernet/VPN) advertise broken DNS servers that
+// refuse SRV lookups, which makes `mongodb+srv://` fail with ECONNREFUSED even
+// though the system DNS client (Windows) resolves fine.
+dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 const connectDB = async () => {
   try {

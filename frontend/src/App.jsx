@@ -3,6 +3,7 @@ import axios from 'axios';
 import './App.css';
 import { FiretruckIcon } from './components/Icons';
 import Homepage from './components/Homepage';
+
 import { API_BASE_URL } from './config';
 import Login from './components/Login';
 import Register from './components/Register';

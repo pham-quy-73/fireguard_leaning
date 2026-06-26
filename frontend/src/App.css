@@ -2617,10 +2617,6 @@ a.contact-row:hover {
   .forum-text {
     font-size: 0.88rem;
   }
-<<<<<<< HEAD
-
-=======
->>>>>>> 107b25dd75e74bc8827afb033ae2792d4762a8d7
 }
 
 /* ==========================================================================
@@ -2729,10 +2725,6 @@ a.contact-row:hover {
 
 .sidebar-subitem.active {
   background-color: #fee2e2;
-<<<<<<< HEAD
-
-=======
->>>>>>> 107b25dd75e74bc8827afb033ae2792d4762a8d7
   color: var(--primary-red);
   font-weight: 600;
 }

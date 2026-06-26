@@ -350,6 +350,13 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
     closeSidebar();
   };
 
+  // Ô hồ sơ ở chân sidebar -> mở trang Cài đặt (đã gộp thông tin học viên vào đây)
+  const handleSidebarProfileClick = () => {
+    setDashboardView('settings');
+    setActiveClassroomVideo(null);
+    closeSidebar();
+  };
+
   // Generic navigation helper for the new grouped sidebar items
   const goToView = (view) => {
     setDashboardView(view);

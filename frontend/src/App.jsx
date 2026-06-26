@@ -3,6 +3,7 @@ import axios from 'axios';
 import './App.css';
 import { FiretruckIcon } from './components/Icons';
 import Homepage from './components/Homepage';
+
 import { API_BASE_URL } from './config';
 import Login from './components/Login';
 import Register from './components/Register';
@@ -124,7 +125,6 @@ function App() {
 
           darkMode={darkMode}
           toggleDarkMode={toggleDarkMode}
-
         />
       ) : view === 'home' ? (
         <Homepage setView={setView} />

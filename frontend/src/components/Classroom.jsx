@@ -45,7 +45,6 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
       setCurrentQuiz(pool[randomIndex]);
     } else {
       setCurrentQuiz(null);
-
     }
 
     // Reset quiz states when video changes

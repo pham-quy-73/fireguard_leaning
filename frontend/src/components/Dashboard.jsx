@@ -37,9 +37,9 @@ const FALLBACK_VIDEOS = [
     categoryKey: "co-ban",
     defaultPercentage: 45,
     isNew: true,
-
     thumbnail: "Chaychungcu_Thumbnail.png",
    
+
     videoUrl: "https://fireguards.h5p.com/content/1292915182618596269/embed",
     description: `Bài học này tái hiện một tình huống cháy thực tế tại một chung cư mini, nơi tầng 1 chứa nhiều xe máy và xe điện đang sạc, chỉ có một cầu thang thoát nạn duy nhất và hệ thống báo cháy không hoạt động. 
 Người xem sẽ vào vai Nam, một sinh viên sống ở tầng 3, và phải đưa ra những quyết định quan trọng trong từng giai đoạn của sự cố.Mỗi lựa chọn đều dẫn đến những hậu quả khác nhau, giúp người xem hiểu rõ các nguy cơ thường gặp và học được cách ứng phó đúng khi xảy ra hỏa hoạn. 
@@ -54,8 +54,8 @@ Mục đích của bài học là nâng cao nhận thức và kỹ năng thoát 
     views: "856 lượt xem • 5 ngày trước",
     defaultPercentage: 0,
     isNew: false,
-
     thumbnail: "Chaybinhnonglanh_Thumbnail.png",
+
 
     videoUrl: "https://fireguards.h5p.com/content/1292915968955906289/embed",
     description: `Giữa đêm đông Hà Nội dưới 15°C, Nam (25 tuổi, kỹ sư phần mềm) đang nằm lướt điện thoại trong phòng trọ 20m² sau ca làm việc mệt mỏi. 
@@ -73,7 +73,9 @@ Mục đích của bài học là nâng cao nhận thức và kỹ năng thoát 
     defaultPercentage: 85,
     isNew: false,
 
+
     thumbnail: "Chayamdunnuoc_Thumbnail.png",
+
 
     videoUrl: "https://fireguards.h5p.com/content/1292916045740892609/embed",
     description: `Nhận biết sớm cháy điện, tránh sai lầm hắt nước gây giật, lập tức ngắt cầu dao tổng, dùng bình chữa cháy chuyên dụng (khí CO2 hoặc bột) và nhanh chóng thoát hiểm để bảo vệ tính mạng`
@@ -203,7 +205,6 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
     // route to target view if any
     if (n.target === 'forum') {
 
-
       setDashboardView('discussion');
 
       setActiveClassroomVideo(null);
@@ -324,11 +325,13 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
   };
 
   const getFilteredVideos = () => {
-    if (activeTab === 'Tất cả') return allVideos;
-    if (activeTab === 'Cơ bản') return allVideos.filter(v => v.category === 'Cơ bản');
-    if (activeTab === 'Chung cư/Nhà cao tầng') return allVideos.filter(v => v.category === 'Thoát hiểm');
-    if (activeTab === 'Thoát hiểm khẩn cấp') return allVideos.filter(v => v.category === 'Thoát hiểm');
-    return allVideos;
+
+    if (activeTab === 'Tất cả') return videos;
+    if (activeTab === 'Cơ bản') return videos.filter(v => v.category === 'Cơ bản');
+    if (activeTab === 'Chung cư/Nhà cao tầng') return videos.filter(v => v.category === 'Thoát hiểm');
+    if (activeTab === 'Thoát hiểm khẩn cấp') return videos.filter(v => v.category === 'Thoát hiểm');
+    return videos;
+
   };
 
   // Determine active profile parameters (Live DB user details takes priority)
@@ -342,18 +345,14 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
   const firstLetter = displayName.charAt(0).toUpperCase();
 
 
-
-
   const handleSidebarAdminClick = () => {
     setDashboardView('admin');
     closeSidebar();
   };
 
-
   // Generic navigation helper for the new grouped sidebar items
   const goToView = (view) => {
     setDashboardView(view);
-
     setActiveClassroomVideo(null);
     closeSidebar();
   };
@@ -362,7 +361,6 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
   // Clicking the brand/logo returns to the home view (Thảo luận)
   const handleGoHome = () => {
     setDashboardView('discussion');
-
     setActiveClassroomVideo(null);
     closeSidebar();
   };
@@ -662,7 +660,6 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
           </button>
         </header>
 
-
         {dashboardView === 'announcements' ? (
           <Announcements user={activeUser} showToast={showToast} />
         ) : dashboardView === 'discussion' ? (
@@ -674,7 +671,6 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
             onComplete={handleCompleteVideo}
             showToast={showToast}
           />
-
         ) : dashboardView === 'videos' ? (
           /* Render Classroom page or course catalog list */
           activeClassroomVideo ? (
@@ -784,7 +780,6 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
         ) : dashboardView === 'admin' ? (
           <AdminPanel showToast={showToast} />
         ) : (
-
           /* SETTINGS PAGE — dark mode + student info in one place (also the default fallback / old profile view) */
           <div className="dashboard-body settings-page">
             <h1 className="grid-heading-title">Cài đặt</h1>
@@ -866,7 +861,6 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
                 Đăng xuất tài khoản
               </button>
             </section>
-
           </div>
         )}
       </main>

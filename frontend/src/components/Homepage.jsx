@@ -89,7 +89,7 @@ const testimonials = [
     name: "Lê Quang Huy",
     role: "Quản lý toà nhà",
     avatar: "QH",
-    content: "Đăng ký cho 30 nhân viên bảo vệ cùng học. Mỗi bài chỉ 5-10 phút, vừa đủ ngắn để tranh thủ giờ giải lao.",
+    content: "Đăng ký cho 30 nhân viên bảo vệ cùng học. Mỗi bài chỉ 1-2 phút, vừa đủ ngắn để tranh thủ giờ giải lao.",
     rating: 5
   },
   {
@@ -118,18 +118,18 @@ const testimonials = [
 const benefits = [
   {
     icon: "🎓",
-    title: "Chứng nhận quốc gia",
-    desc: "Nhận chứng chỉ hoàn thành được công nhận bởi Cục Cảnh sát PCCC & CNCH sau khi vượt qua bài kiểm tra cuối khóa."
+    title: "Chứng nhận hoàn thành",
+    desc: "Nhận chứng nhận hoàn thành khóa học sau khi vượt qua bài kiểm tra cuối khóa, ghi nhận nỗ lực và kỹ năng PCCC bạn đã rèn luyện."
   },
   {
     icon: "⏱️",
     title: "Học mọi lúc mọi nơi",
-    desc: "Bài giảng ngắn 5-15 phút, tối ưu cho điện thoại và máy tính bảng. Học trong giờ nghỉ trưa hay trên xe buýt đều được."
+    desc: "Bài giảng ngắn 1-2 phút, tối ưu cho điện thoại và máy tính bảng. Học trong giờ nghỉ trưa hay trên xe buýt đều được."
   },
   {
     icon: "🎮",
     title: "Tương tác thực tế ảo",
-    desc: "Mô phỏng tình huống cháy như thật qua video H5P. Bạn sẽ phải ra quyết định và thấy hậu quả từng lựa chọn."
+    desc: "Mô phỏng tình huống cháy như thật qua video tương tác (interactive video). Bạn sẽ phải ra quyết định và thấy hậu quả từng lựa chọn."
   },
   {
     icon: "📊",
@@ -163,12 +163,37 @@ function CountUp({ target, decimals = 0, format, start }) {
   return <>{display}</>;
 }
 
-function Homepage({ setView }) {
+
+// Khung hình trích từ chính video của từng khóa (Cloudinary so_15) — map theo tiêu đề.
+// Nguồn xác định theo URL video gốc H5P do người dùng cung cấp (đối chiếu tên file nguồn).
+const COURSE_FRAMES = {
+  chungcu:   'https://res.cloudinary.com/dzasig10l/video/upload/so_15,w_640,h_360,c_fill,q_auto/v1782235650/sources-6a1a9d24d11b2_afpqin.jpg',
+  trongnha:  'https://res.cloudinary.com/dzasig10l/video/upload/so_15,w_640,h_360,c_fill,q_auto/v1782234076/sources-6a1af9db9c0aa_ls6wjr.jpg',
+  mini:      'https://res.cloudinary.com/dzasig10l/video/upload/so_15,w_640,h_360,c_fill,q_auto/v1782231998/sources-6a3533e05595d_mr24j4.jpg',
+  amdunnuoc: 'https://res.cloudinary.com/dzasig10l/video/upload/so_15,w_640,h_360,c_fill,q_auto/v1782235450/files-6a353f5a413e0_cwbln4.jpg',
+};
+const FRAME_FALLBACK = [COURSE_FRAMES.chungcu, COURSE_FRAMES.trongnha, COURSE_FRAMES.mini, COURSE_FRAMES.amdunnuoc];
+function getCourseThumb(video, idx) {
+  const t = ((video && video.title) || '').toLowerCase();
+  if (t.includes('mini')) return COURSE_FRAMES.mini;
+  if (t.includes('trong nhà') || t.includes('trong nha')) return COURSE_FRAMES.trongnha;
+  if (t.includes('ấm') || t.includes('đun nước') || t.includes('dun nuoc') || t.includes('điện') || t.includes('dien') ||
+      t.includes('sơ cứu') || t.includes('so cuu') || t.includes('bỏng') || t.includes('bong') ||
+      t.includes('ngạt khói') || t.includes('ngat khoi')) return COURSE_FRAMES.amdunnuoc;
+  if (t.includes('chung cư') || t.includes('chung cu') || t.includes('cao tầng') || t.includes('cao tang')) return COURSE_FRAMES.chungcu;
+  return FRAME_FALLBACK[idx % FRAME_FALLBACK.length];
+}
+
+function Homepage({ setView, totalStudents = null, videoCount = null, videos = [], onStartCourse }) {
+  const startCourse = onStartCourse || (() => setView('register'));
   const [scrolled, setScrolled] = useState(false);
   const [animatedStats, setAnimatedStats] = useState(false);
   const [showTop, setShowTop] = useState(false);
   const [openFaq, setOpenFaq] = useState(0);
   const rootRef = useRef(null);
+
+  // Đồng bộ phần 'Lộ trình' với khóa học thật trong DB; fallback dữ liệu mẫu khi API lỗi
+  const displayCourses = (videos && videos.length) ? videos.slice(0, 3) : featuredCourses;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -283,13 +308,13 @@ function Homepage({ setView }) {
           <div className="hp-hero-text-col">
             <div className="hp-hero-badge">
               <span className="hp-hero-badge-dot"></span>
-              Hơn 5.000+ học viên đã tham gia
+              Hơn {totalStudents != null ? totalStudents.toLocaleString('vi-VN') : '5.000+'} học viên đã tham gia
             </div>
             <h1 className="hp-hero-heading">
               Học kỹ năng <span className="hp-hero-highlight hp-flame-text">phòng cháy chữa cháy</span> qua mô phỏng tương tác thực tế
             </h1>
             <p className="hp-hero-subtitle">
-              Trang bị cho bản thân và gia đình kiến thức sống còn chỉ trong 30 phút mỗi ngày.
+              Trang bị cho bản thân và gia đình kiến thức sống còn chỉ trong vài phút mỗi ngày.
               Video bài giảng trực quan, tình huống mô phỏng chân thực, bài kiểm tra tương tác.
             </p>
 
@@ -308,14 +333,16 @@ function Homepage({ setView }) {
             <div className={`hp-hero-stats${animatedStats ? ' hp-hero-stats-visible' : ''}`}>
               <div className="hp-hero-stat-item">
                 <span className="hp-hero-stat-value">
-                  <CountUp target={100} start={animatedStats} />+
+                  {videoCount != null ? videoCount : <><CountUp target={100} start={animatedStats} />+</>}
                 </span>
                 <span className="hp-hero-stat-label">Bài học video</span>
               </div>
               <div className="hp-hero-stat-divider"></div>
               <div className="hp-hero-stat-item">
                 <span className="hp-hero-stat-value">
-                  <CountUp target={5000} start={animatedStats} format={fmtThousand} />+
+                  {totalStudents != null
+                    ? <CountUp target={totalStudents} start={animatedStats} format={fmtThousand} />
+                    : <><CountUp target={5000} start={animatedStats} format={fmtThousand} />+</>}
                 </span>
                 <span className="hp-hero-stat-label">Học viên</span>
               </div>
@@ -334,9 +361,14 @@ function Homepage({ setView }) {
             <div className="hp-hero-card">
               <div className="hp-hero-card-img-box">
                 <img src="/training.png" alt="Huấn luyện PCCC" className="hp-hero-card-img" />
-                <div className="hp-hero-card-play">
+                <button
+                  type="button"
+                  className="hp-hero-card-play"
+                  onClick={() => setView('register')}
+                  aria-label="Bắt đầu học"
+                >
                   <span>▶</span>
-                </div>
+                </button>
               </div>
               <div className="hp-hero-card-body">
                 <span className="hp-hero-card-badge">🔥 Đang phát trực tiếp</span>
@@ -345,7 +377,7 @@ function Homepage({ setView }) {
                   <div className="hp-hero-card-progress-bar">
                     <div className="hp-hero-card-progress-fill" style={{ width: '68%' }}></div>
                   </div>
-                  <span className="hp-hero-card-progress-text">2.450 học viên đang học</span>
+                  <span className="hp-hero-card-progress-text">{totalStudents != null ? totalStudents.toLocaleString('vi-VN') : '2.450'} học viên đang học</span>
                 </div>
               </div>
             </div>
@@ -355,14 +387,14 @@ function Homepage({ setView }) {
               <span className="hp-hero-float-icon">🛡️</span>
               <div>
                 <strong>An toàn</strong>
-                <span>Chuẩn quốc gia</span>
+                <span>Kỹ năng sống còn</span>
               </div>
             </div>
             <div className="hp-hero-float hp-hero-float-2">
-              <span className="hp-hero-float-icon">✅</span>
+              <span className="hp-hero-float-icon">🔥</span>
               <div>
-                <strong>Đã kiểm duyệt</strong>
-                <span>Bởi chuyên gia</span>
+                <strong>{totalStudents != null ? totalStudents.toLocaleString('vi-VN') : '5.000+'}</strong>
+                <span>Học viên tin dùng</span>
               </div>
             </div>
           </div>
@@ -382,7 +414,7 @@ function Homepage({ setView }) {
         </div>
 
         <div className="hp-courses-grid">
-          {featuredCourses.map((course, idx) => (
+          {displayCourses.map((course, idx) => (
             <div
               key={course.id}
               className="hp-course-card hp-reveal"
@@ -390,9 +422,14 @@ function Homepage({ setView }) {
             >
               <div
                 className="hp-course-thumb"
-                style={{ backgroundImage: `url('/${course.thumbnail}')` }}
+                style={{ backgroundImage: `url('${getCourseThumb(course, idx)}')` }}
               >
-                <div className="hp-course-thumb-overlay">
+                <div
+                  className="hp-course-thumb-overlay"
+                  onClick={() => startCourse(course)}
+                  role="button"
+                  aria-label="Học ngay"
+                >
                   <div className="hp-course-play-btn">
                     <span>▶</span>
                   </div>
@@ -408,11 +445,11 @@ function Homepage({ setView }) {
                 <div className="hp-course-footer-row">
                   <span className="hp-course-duration">
                     <span style={{ marginRight: '4px' }}>⏱️</span>
-                    {course.id === 1 ? '15 phút' : course.id === 2 ? '12 phút' : '10 phút'}
+                    {course.duration && String(course.duration).trim() ? course.duration : '1-2 phút'}
                   </span>
                   <button
                     className="hp-course-cta"
-                    onClick={() => setView('register')}
+                    onClick={() => startCourse(course)}
                   >
                     Học ngay →
                   </button>
@@ -462,7 +499,7 @@ function Homepage({ setView }) {
       <section className="hp-section" id="hp-testimonials">
         <div className="hp-section-header hp-reveal">
           <span className="hp-section-tag">Đánh giá từ học viên</span>
-          <h2 className="hp-section-title">Hơn 2.450 đánh giá tích cực từ cộng đồng</h2>
+          <h2 className="hp-section-title">Hơn {totalStudents != null ? totalStudents.toLocaleString('vi-VN') : '2.450'} đánh giá tích cực từ cộng đồng</h2>
           <p className="hp-section-desc">
             Học viên từ nhiều lứa tuổi và ngành nghề đã tin tưởng và gắn bó cùng FIREGUARD.
           </p>
@@ -572,7 +609,7 @@ function Homepage({ setView }) {
             Sẵn sàng bảo vệ bản thân và những người xung quanh?
           </h2>
           <p className="hp-cta-banner-text">
-            Đăng ký tài khoản miễn phí ngay hôm nay và bắt đầu bài học đầu tiên. Chỉ mất 10 phút!
+            Đăng ký tài khoản miễn phí ngay hôm nay và bắt đầu bài học đầu tiên. Chỉ mất vài phút!
           </p>
           <div className="hp-cta-banner-buttons">
             <button className="hp-btn hp-btn-white hp-btn-lg" onClick={() => setView('register')}>
@@ -603,12 +640,6 @@ function Homepage({ setView }) {
               Nền tảng học tập kỹ năng phòng cháy chữa cháy tương tác hàng đầu Việt Nam.
               Sứ mệnh của chúng tôi là trang bị kiến thức PCCC cho mọi người dân.
             </p>
-            <div className="hp-footer-socials">
-              <span className="hp-footer-social-icon" title="Facebook">📘</span>
-              <span className="hp-footer-social-icon" title="YouTube">▶️</span>
-              <span className="hp-footer-social-icon" title="TikTok">🎵</span>
-              <span className="hp-footer-social-icon" title="Zalo">💬</span>
-            </div>
           </div>
 
           {/* Quick links */}
@@ -623,10 +654,11 @@ function Homepage({ setView }) {
           {/* Khóa học */}
           <div className="hp-footer-col">
             <h4 className="hp-footer-col-title">Khóa học phổ biến</h4>
-            <button onClick={() => setView('register')} className="hp-footer-link">Thoát nạn chung cư</button>
-            <button onClick={() => setView('register')} className="hp-footer-link">Xử lý cháy thiết bị điện</button>
-            <button onClick={() => setView('register')} className="hp-footer-link">Sơ cứu bỏng & ngạt khói</button>
-            <button onClick={() => setView('register')} className="hp-footer-link">Sử dụng bình chữa cháy</button>
+            {(videos && videos.length ? videos : featuredCourses).slice(0, 4).map((c) => (
+              <button key={c.id ?? c._id} onClick={() => startCourse(c)} className="hp-footer-link">
+                {c.title}
+              </button>
+            ))}
           </div>
 
           {/* Contact */}
@@ -644,6 +676,19 @@ function Homepage({ setView }) {
               <span className="hp-footer-contact-icon"><MapMarkerIcon /></span>
               <span>Hà Nội, Việt Nam</span>
             </div>
+            <a
+              href="https://www.facebook.com/profile.php?id=61590647753791"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hp-footer-contact-row"
+            >
+              <span className="hp-footer-contact-icon">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+                  <path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5 3.66 9.15 8.44 9.94v-7.03H7.9v-2.9h2.54V9.85c0-2.52 1.5-3.91 3.78-3.91 1.1 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.44 2.9h-2.34V22c4.78-.79 8.44-4.94 8.44-9.94z" />
+                </svg>
+              </span>
+              <span>Facebook FIREGUARD</span>
+            </a>
           </div>
         </div>
 

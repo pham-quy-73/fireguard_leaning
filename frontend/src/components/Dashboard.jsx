@@ -101,7 +101,7 @@ const INITIAL_NOTIFICATIONS = [
     desc: 'Học viên đang trao đổi về kỹ năng dùng bình CO2.',
     time: '22 phút trước',
     isRead: false,
-    target: 'forum',
+    target: 'discussion',
   },
   {
     id: 'n3',
@@ -110,7 +110,7 @@ const INITIAL_NOTIFICATIONS = [
     desc: 'Cố lên! Hoàn thành 4 bài còn lại để nhận chứng chỉ.',
     time: '1 giờ trước',
     isRead: false,
-    target: 'profile',
+    target: 'settings',
   },
   {
     id: 'n4',
@@ -119,11 +119,31 @@ const INITIAL_NOTIFICATIONS = [
     desc: 'Chúng tôi vừa cập nhật điều khoản sử dụng FIREGUARD.',
     time: 'Hôm qua',
     isRead: true,
-    target: null,
+    target: 'announcements',
   },
 ];
 
-function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) {
+// Khung hình trích từ chính video của từng khóa (Cloudinary so_15) — map theo tiêu đề.
+// Nguồn xác định theo URL video gốc H5P do người dùng cung cấp (đối chiếu tên file nguồn).
+const COURSE_FRAMES = {
+  chungcu:   'https://res.cloudinary.com/dzasig10l/video/upload/so_15,w_640,h_360,c_fill,q_auto/v1782235650/sources-6a1a9d24d11b2_afpqin.jpg',
+  trongnha:  'https://res.cloudinary.com/dzasig10l/video/upload/so_15,w_640,h_360,c_fill,q_auto/v1782234076/sources-6a1af9db9c0aa_ls6wjr.jpg',
+  mini:      'https://res.cloudinary.com/dzasig10l/video/upload/so_15,w_640,h_360,c_fill,q_auto/v1782231998/sources-6a3533e05595d_mr24j4.jpg',
+  amdunnuoc: 'https://res.cloudinary.com/dzasig10l/video/upload/so_15,w_640,h_360,c_fill,q_auto/v1782235450/files-6a353f5a413e0_cwbln4.jpg',
+};
+const FRAME_FALLBACK = [COURSE_FRAMES.chungcu, COURSE_FRAMES.trongnha, COURSE_FRAMES.mini, COURSE_FRAMES.amdunnuoc];
+function getCourseThumb(video, idx) {
+  const t = ((video && video.title) || '').toLowerCase();
+  if (t.includes('mini')) return COURSE_FRAMES.mini;
+  if (t.includes('trong nhà') || t.includes('trong nha')) return COURSE_FRAMES.trongnha;
+  if (t.includes('ấm') || t.includes('đun nước') || t.includes('dun nuoc') || t.includes('điện') || t.includes('dien') ||
+      t.includes('sơ cứu') || t.includes('so cuu') || t.includes('bỏng') || t.includes('bong') ||
+      t.includes('ngạt khói') || t.includes('ngat khoi')) return COURSE_FRAMES.amdunnuoc;
+  if (t.includes('chung cư') || t.includes('chung cu') || t.includes('cao tầng') || t.includes('cao tang')) return COURSE_FRAMES.chungcu;
+  return FRAME_FALLBACK[idx % FRAME_FALLBACK.length];
+}
+
+function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clearPendingVideo, darkMode, toggleDarkMode }) {
   const [dashboardView, setDashboardView] = useState('discussion'); // 'announcements' | 'discussion' | 'videos' | 'quiz' | 'profile' | 'admin' | 'settings'
   // Sidebar expandable groups
   const [forumGroupOpen, setForumGroupOpen] = useState(true);
@@ -134,7 +154,45 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Notifications
-  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState(() => {
+    // Khôi phục trạng thái 'đã đọc' đã lưu để reload không hiện lại
+    let readIds = [];
+    try { readIds = JSON.parse(localStorage.getItem('readNotifs') || '[]'); } catch (e) { readIds = []; }
+    return INITIAL_NOTIFICATIONS.map((n) => (readIds.includes(n.id) ? { ...n, isRead: true } : n));
+  });
+
+  // Thông báo gửi riêng cho học viên này từ DB (vd admin nhắc học)
+  const [dbNotifs, setDbNotifs] = useState([]);
+
+  // Lưu danh sách thông báo đã đọc vào localStorage mỗi khi thay đổi
+  useEffect(() => {
+    const readIds = notifications.filter((n) => n.isRead).map((n) => n.id);
+    try { localStorage.setItem('readNotifs', JSON.stringify(readIds)); } catch (e) { /* ignore */ }
+  }, [notifications]);
+
+  // Nạp thông báo riêng của học viên từ DB
+  useEffect(() => {
+    const uid = user?.id || user?._id;
+    if (!uid) return;
+    axios.get(`${API_BASE_URL}/api/auth/notifications/${uid}`)
+      .then((res) => {
+        if (res.data?.success) {
+          setDbNotifs((res.data.notifications || []).map((n) => ({
+            id: n._id,
+            icon: n.icon || '📣',
+            title: n.title,
+            desc: n.desc,
+            time: n.createdAt
+              ? new Date(n.createdAt).toLocaleDateString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
+              : 'Mới',
+            isRead: !!n.isRead,
+            target: null,
+          })));
+        }
+      })
+      .catch(() => { /* ignore */ });
+  }, [user]);
+
   const [notifOpen, setNotifOpen] = useState(false);
   const notifPanelRef = useRef(null);
   const notifTriggerRef = useRef(null);
@@ -152,6 +210,30 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
   // Danh sách video lấy trực tiếp từ MongoDB (GET /api/videos).
   // Thêm/xóa video trong DB sẽ phản ánh ngay khi tải lại trang.
   const [videos, setVideos] = useState([]);
+
+  // Sinh thông báo 'bài học mới' động theo video có cờ isNew trong DB.
+  // Cái mới (id chưa từng đọc) sẽ hiện chưa đọc; cái đã đọc vẫn được nhớ.
+  useEffect(() => {
+    let readIds = [];
+    try { readIds = JSON.parse(localStorage.getItem('readNotifs') || '[]'); } catch (e) { readIds = []; }
+    const dynamicNew = (videos || [])
+      .filter((v) => v && v.isNew)
+      .map((v) => ({
+        id: `video-new-${v.id}`,
+        icon: '🔥',
+        title: `Bài học mới: ${v.title}`,
+        desc: 'Vừa được thêm vào kho khóa học. Mở xem ngay!',
+        time: 'Mới',
+        isRead: false,
+        target: 'videos',
+      }));
+    // Bỏ thông báo 'bài học mới' tĩnh mẫu (n1) vì đã có bản động ở trên
+    const staticOnes = INITIAL_NOTIFICATIONS.filter((n) => n.id !== 'n1');
+    const merged = [...dbNotifs, ...dynamicNew, ...staticOnes].map((n) =>
+      readIds.includes(n.id) ? { ...n, isRead: true } : n
+    );
+    setNotifications(merged);
+  }, [videos, dbNotifs]);
   const [videosLoading, setVideosLoading] = useState(true);
 
   useEffect(() => {
@@ -173,6 +255,19 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
       });
     return () => { active = false; };
   }, []);
+
+  // Mở đúng bài học khi khách chọn 'Học ngay' ở trang chủ rồi đăng nhập
+  useEffect(() => {
+    if (!pendingVideoId || !videos.length) return;
+    const v = videos.find(
+      (x) => String(x.id) === String(pendingVideoId) || String(x._id) === String(pendingVideoId)
+    );
+    if (v) {
+      setDashboardView('videos');
+      setActiveClassroomVideo(v);
+    }
+    if (clearPendingVideo) clearPendingVideo();
+  }, [pendingVideoId, videos]);
 
   // Lock body scroll when sidebar drawer is open on mobile
   useEffect(() => {
@@ -202,19 +297,9 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
       prev.map((it) => (it.id === n.id ? { ...it, isRead: true } : it))
     );
     setNotifOpen(false);
-    // route to target view if any
-    if (n.target === 'forum') {
-
-      setDashboardView('discussion');
-
-      setActiveClassroomVideo(null);
-    } else if (n.target === 'videos') {
-      setDashboardView('videos');
-      setActiveClassroomVideo(null);
-    } else if (n.target === 'profile') {
-
-      setDashboardView('settings');
-
+    // Điều hướng tới đúng trang mà thông báo trỏ tới
+    if (n.target) {
+      setDashboardView(n.target);
       setActiveClassroomVideo(null);
     }
     closeSidebar();
@@ -289,7 +374,6 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
           if (response.data.success) {
             setDbUser(response.data.user);
             setWatchedIds(response.data.user.watchedVideos || []);
-            showToast('Thông tin được đồng bộ trực tiếp từ Database!', 'success');
           }
         })
         .catch(err => console.log('Không thể làm mới dữ liệu từ Database'));
@@ -317,7 +401,7 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
         setWatchedIds(updatedWatched);
 
         // Show success toast on completion
-        showToast(`Chúc mừng! Bạn đã trả lời đúng câu hỏi trắc nghiệm và hoàn thành bài học này!`, 'success');
+        showToast('Chúc mừng! Bạn đã hoàn thành bài học này!', 'success');
       }
     } catch (err) {
       console.error("Không thể lưu tiến trình học:", err);
@@ -473,6 +557,17 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
 
         <nav className="sidebar-menu">
 
+          {/* Về trang chủ (landing) — chiều quay lại từ dashboard */}
+          <div
+            className="sidebar-item"
+            onClick={() => { if (goHome) goHome(); closeSidebar(); }}
+            role="button"
+            tabIndex={0}
+          >
+            <span style={{ marginRight: '10px', fontSize: '1rem' }}>🏠</span>
+            Trang chủ
+          </div>
+
           {/* GROUP: Diễn đàn */}
           <div className="sidebar-group">
             <div
@@ -488,13 +583,6 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
 
             {forumGroupOpen && (
               <div className="sidebar-subitems">
-                <div
-                  className={`sidebar-subitem ${dashboardView === 'announcements' ? 'active' : ''}`}
-                  onClick={() => goToView('announcements')}
-                >
-                  <span className="sidebar-subitem-icon">📢</span>
-                  Thông báo
-                </div>
                 <div
                   className={`sidebar-subitem ${dashboardView === 'discussion' ? 'active' : ''}`}
                   onClick={() => goToView('discussion')}
@@ -665,6 +753,62 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
           >
             ☰
           </button>
+
+          {/* Chuông thông báo ở góc phải header */}
+          <div className="header-actions">
+            <div className="notif-wrap">
+              <button
+                ref={notifTriggerRef}
+                className="notif-bell-btn"
+                onClick={toggleNotifPanel}
+                aria-label="Thông báo"
+                title="Thông báo"
+              >
+                <NotifyBellIcon />
+                {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
+              </button>
+
+              {notifOpen && (
+                <div ref={notifPanelRef} className="notif-panel" role="dialog" aria-label="Thông báo">
+                  <div className="notif-panel-head">
+                    <span className="notif-panel-title">Thông báo</span>
+                    {unreadCount > 0 && (
+                      <button className="notif-markall" onClick={handleMarkAllRead}>
+                        Đánh dấu đã đọc
+                      </button>
+                    )}
+                  </div>
+                  <div className="notif-list">
+                    {notifications.length === 0 ? (
+                      <p className="notif-empty">Chưa có thông báo nào.</p>
+                    ) : (
+                      notifications.map((n) => (
+                        <button
+                          key={n.id}
+                          className={`notif-item ${n.isRead ? '' : 'unread'}`}
+                          onClick={() => handleNotifClick(n)}
+                        >
+                          <span className="notif-item-icon">{n.icon}</span>
+                          <span className="notif-item-body">
+                            <span className="notif-item-title">{n.title}</span>
+                            <span className="notif-item-desc">{n.desc}</span>
+                            <span className="notif-item-time">{n.time}</span>
+                          </span>
+                          {!n.isRead && <span className="notif-dot" />}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                  <button
+                    className="notif-seeall"
+                    onClick={() => { setNotifOpen(false); goToView('announcements'); }}
+                  >
+                    Xem tất cả thông báo →
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </header>
 
         {dashboardView === 'announcements' ? (
@@ -715,7 +859,7 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
                 <p className="grid-heading-desc">Chưa có bài học nào trong cơ sở dữ liệu.</p>
               ) : (
               <div className="video-catalog-grid">
-                {getFilteredVideos().map((video) => {
+                {getFilteredVideos().map((video, idx) => {
                   const isWatched = watchedIds.includes(video.id);
                   // Calculate actual progress status
                   const percentShow = isWatched ? 100 : video.defaultPercentage;
@@ -725,7 +869,7 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
                     <div key={video.id} className="video-catalog-card">
                       <div
                         className="thumbnail-box"
-                        style={{ backgroundImage: `url('${video.thumbnail}')` }}
+                        style={{ backgroundImage: `url('${getCourseThumb(video, idx)}')` }}
                       >
                         {video.isNew && <span className="thumbnail-badge-status">Mới</span>}
                         <span className="thumbnail-duration-overlay">{video.duration}</span>
@@ -753,18 +897,14 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
                             )}
                           </div> */}
 
-                          <div className="progress-track-bar">
-                            <div
-                              className="progress-fill-active"
-                              style={{
-                                width: `${percentShow}%`,
-                                backgroundColor: isWatched ? '#10b981' : '#c2182c' // Green if 100% completed!
-                              }}
-                            ></div>
-                          </div>
+                          {isWatched ? (
+                            <div className="course-status-badge done">✓ Đã hoàn thành</div>
+                          ) : (
+                            <div className="course-status-badge todo">● Chưa hoàn thành</div>
+                          )}
 
                           <button
-                            className={`watch-action-button ${percentShow === 0 ? 'not-started' : ''}`}
+                            className={`watch-action-button ${!isWatched ? 'not-started' : ''}`}
                             onClick={() => handleWatchVideo(video)}
                             style={{
                               borderColor: isWatched ? '#10b981' : '',
@@ -772,7 +912,7 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
                               backgroundColor: isWatched ? '#ecfdf5' : ''
                             }}
                           >
-                            {isWatched ? '✓ Xem lại bài học' : (percentShow > 0 ? 'Tiếp tục xem' : 'Bắt đầu học')}
+                            {isWatched ? '✓ Xem lại bài học' : 'Bắt đầu học'}
                           </button>
                         </div>
                       </div>

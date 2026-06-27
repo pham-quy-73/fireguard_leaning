@@ -7,10 +7,10 @@ const Video = require('../models/Video');
 
 // Map theo id video -> frame .jpg trích từ video gốc trên Cloudinary
 const VIDEO_FRAME_THUMBS = {
-  1: 'https://res.cloudinary.com/dzasig10l/video/upload/so_4,w_640,h_360,c_fill,q_auto/v1782234076/sources-6a1af9db9c0aa_ls6wjr.jpg',
-  2: 'https://res.cloudinary.com/dzasig10l/video/upload/so_4,w_640,h_360,c_fill,q_auto/v1782235450/files-6a353f5a413e0_cwbln4.jpg',
-  3: 'https://res.cloudinary.com/dzasig10l/video/upload/so_4,w_640,h_360,c_fill,q_auto/v1782231998/sources-6a3533e05595d_mr24j4.jpg',
-  4: 'https://res.cloudinary.com/dzasig10l/video/upload/so_4,w_640,h_360,c_fill,q_auto/v1782235650/sources-6a1a9d24d11b2_afpqin.jpg',
+  1: 'https://res.cloudinary.com/dzasig10l/video/upload/so_15,w_640,h_360,c_fill,q_auto/v1782234076/sources-6a1af9db9c0aa_ls6wjr.jpg',
+  2: 'https://res.cloudinary.com/dzasig10l/video/upload/so_15,w_640,h_360,c_fill,q_auto/v1782235450/files-6a353f5a413e0_cwbln4.jpg',
+  3: 'https://res.cloudinary.com/dzasig10l/video/upload/so_15,w_640,h_360,c_fill,q_auto/v1782231998/sources-6a3533e05595d_mr24j4.jpg',
+  4: 'https://res.cloudinary.com/dzasig10l/video/upload/so_15,w_640,h_360,c_fill,q_auto/v1782235650/sources-6a1a9d24d11b2_afpqin.jpg',
 };
 
 (async () => {

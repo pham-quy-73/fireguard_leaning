@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const Comment = require('../models/Comment');
+const Notification = require('../models/Notification');
 const ForumPost = require('../models/ForumPost');
 const Announcement = require('../models/Announcement');
 
@@ -322,6 +323,51 @@ exports.createForumPost = async (req, res) => {
   } catch (error) {
     console.error("Lỗi đăng bài diễn đàn:", error);
     res.status(500).json({ success: false, message: "Không thể đăng bình luận của bạn!" });
+  }
+};
+
+// @desc    Tạo thông báo gửi tới 1 học viên (admin nhắc học)
+// @route   POST /api/auth/notifications
+// @access  Admin
+exports.createNotification = async (req, res) => {
+  try {
+    const { adminId, userId, title, desc, icon, type } = req.body;
+    if (!userId || !title) {
+      return res.status(400).json({ success: false, message: "Thiếu thông tin thông báo!" });
+    }
+    const requester = adminId ? await User.findById(adminId) : null;
+    const isAdmin = requester && (requester.role === 'admin' || requester.email === 'admin@fireguard.com');
+    if (!isAdmin) {
+      return res.status(403).json({ success: false, message: "Chỉ quản trị viên mới được gửi nhắc nhở!" });
+    }
+    const notif = new Notification({
+      userId: String(userId),
+      title,
+      desc: desc || '',
+      icon: icon || '🔔',
+      type: type || 'reminder',
+    });
+    await notif.save();
+    res.status(201).json({ success: true, message: "Đã gửi nhắc nhở tới học viên!", notification: notif });
+  } catch (error) {
+    console.error("Lỗi gửi thông báo:", error);
+    res.status(500).json({ success: false, message: "Không thể gửi thông báo!" });
+  }
+};
+
+// @desc    Lấy thông báo của 1 học viên
+// @route   GET /api/auth/notifications/:userId
+// @access  Public (theo userId)
+exports.getUserNotifications = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const items = await Notification.find({ userId: String(userId) })
+      .sort({ createdAt: -1 })
+      .limit(50);
+    res.status(200).json({ success: true, notifications: items });
+  } catch (error) {
+    console.error("Lỗi lấy thông báo:", error);
+    res.status(500).json({ success: false, message: "Không thể nạp thông báo!" });
   }
 };
 

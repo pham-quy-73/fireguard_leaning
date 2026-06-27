@@ -369,11 +369,6 @@ export default function Forum({ user, showToast }) {
               <div className="forum-meta">
                 <div className="forum-name-row">
                   <span className="forum-name">{c.name}</span>
-                  {c.verified && (
-                    <span className="forum-verified" title="Đã xác minh">
-                      ✓
-                    </span>
-                  )}
                   {c.isMe && <span className="forum-me-badge">Bạn</span>}
                 </div>
                 <span className="forum-role">

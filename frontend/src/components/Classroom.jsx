@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import { getQuizForVideo } from '../data/quizData';
 
 function Classroom({ video, user, onBack, showToast, onComplete }) {
-  const [activeTab, setActiveTab] = useState('desc'); // 'desc' | 'reviews' | 'docs'
+  const [activeTab, setActiveTab] = useState('desc'); // 'desc' | 'docs'
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState('');
   const [ratingInput, setRatingInput] = useState(5); // Default 5 stars
@@ -17,6 +17,43 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
   const [quizMessage, setQuizMessage] = useState('');
   const [showQuiz, setShowQuiz] = useState(false); // Toggle between Video and Quiz
   const [currentQuiz, setCurrentQuiz] = useState(null); // Trắc nghiệm lựa chọn ngẫu nhiên cho bài học
+
+  // Tránh ghi nhận hoàn thành trùng lặp cho cùng một bài
+  const completedSentRef = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => { onCompleteRef.current = onComplete; });
+
+  // Tự động ghi nhận hoàn thành KHI người học LÀM XONG bài
+  // (player H5P cục bộ gửi tín hiệu completed/passed -> percentage 100).
+  useEffect(() => {
+    completedSentRef.current = false;
+
+    const markComplete = () => {
+      if (completedSentRef.current) return;
+      completedSentRef.current = true;
+      const id = video?.id;
+      if (onCompleteRef.current && id) onCompleteRef.current(id);
+    };
+
+    const onMessage = (e) => {
+      let data = e.data;
+      if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch { return; }
+      }
+      if (!data || typeof data !== 'object') return;
+      const stmt = data.statement || data;
+      const verbId = (stmt && stmt.verb && stmt.verb.id) || '';
+      const verbDisp = (stmt && stmt.verb && stmt.verb.display) ? Object.values(stmt.verb.display).join(' ') : '';
+      const verb = (verbId + ' ' + verbDisp).toLowerCase();
+      const completion = !!(stmt && stmt.result && stmt.result.completion === true);
+      const pct = Number(data.percentage);
+      const finished = completion || (Number.isFinite(pct) && pct >= 100) || /completed|passed|mastered/.test(verb);
+      if (finished) markComplete();
+    };
+
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [video?.id]);
 
   // Fetch comments for the specified video from backend on mount or video change
   const fetchComments = async () => {
@@ -113,7 +150,7 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
       // Đợi 2 giây để người dùng đọc thông tin giải thích đáp án đúng, sau đó tự điều hướng
       setTimeout(() => {
         setShowQuiz(false); // Quay trở lại màn hình hiển thị H5P/Video chính
-        setActiveTab('reviews'); // Tự động chọn Tab "Đánh giá & Thảo luận"
+        setActiveTab('desc'); // Quay về tab Mô tả chi tiết (kèm phần thảo luận)
         
         // Thông báo bằng Toast siêu xịn xò
         showToast('Chúc mừng bạn đã hoàn thành bài học! Hãy để lại cảm nghĩ và đánh giá của bạn nhé.', 'success');
@@ -157,6 +194,18 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
         >
           ← Quay lại kho khóa học
         </div>
+
+        {/* Tiêu đề bài học — đặt trên cùng cho gọn gàng, tránh rối mắt */}
+        <div className="classroom-lesson-header" style={{ marginBottom: '16px' }}>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
+            <span className={`video-category-tag ${video?.categoryKey || 'co-ban'}`} style={{ padding: '4px 10px', fontSize: '0.7rem' }}>{video?.category || 'Cơ bản'}</span>
+            <span className="video-category-tag ky-thuat" style={{ padding: '4px 10px', fontSize: '0.7rem' }}>Kỹ thuật</span>
+          </div>
+          <h1 style={{ fontSize: '1.7rem', fontWeight: '800', color: '#1e293b', lineHeight: '1.3', margin: 0 }}>
+            {video.title}
+          </h1>
+        </div>
+
         {/* Video Player Box Area */}
         <div className={`video-player-box ${video?.videoUrl?.includes('h5p.com') ? 'h5p-active' : 'normal-active'}`}>
           {showQuiz ? (
@@ -371,21 +420,6 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
           </button>
         </div>
 
-        {/* Video Course details pane */}
-        <div className="classroom-title-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-          <div>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
-              <span className="video-category-tag co-ban" style={{ padding: '4px 10px', fontSize: '0.7rem' }}>Cơ bản</span>
-              <span className="video-category-tag ky-thuat" style={{ padding: '4px 10px', fontSize: '0.7rem' }}>Kỹ thuật</span>
-            </div>
-            <h1 style={{ fontSize: '1.65rem', fontWeight: '800', color: '#1e293b', lineHeight: '1.3' }}>
-              {video.title}
-            </h1>
-          </div>
-
-          {/* Action buttons (Lưu, Chia sẻ) */}
-
-        </div>
 
         {/* Ratings information */}
         {/* <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem', color: '#64748b', marginBottom: '24px' }}>
@@ -418,21 +452,6 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
             Mô tả chi tiết
           </button>
           <button
-            onClick={() => setActiveTab('reviews')}
-            style={{
-              padding: '12px 20px',
-              background: 'none',
-              border: 'none',
-              borderBottom: activeTab === 'reviews' ? '2.5px solid #c2182c' : '2.5px solid transparent',
-              color: activeTab === 'reviews' ? '#c2182c' : '#64748b',
-              fontWeight: '700',
-              fontSize: '0.9rem',
-              cursor: 'pointer'
-            }}
-          >
-            Đánh giá & Thảo luận ({comments.length})
-          </button>
-          <button
             onClick={() => setActiveTab('docs')}
             style={{
               padding: '12px 20px',
@@ -453,15 +472,56 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
         <div id="classroom-tabs-content">
         {activeTab === 'desc' && (
           <div>
+            {/* Dải thông tin nhanh về bài học */}
+            <div className="classroom-meta-strip" style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: '22px' }}>
+              <div className="classroom-meta-item" style={{ flex: '1 1 140px', minWidth: '130px', padding: '12px 14px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px' }}>
+                <span style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', fontWeight: '600', marginBottom: '3px' }}>⏱️ Thời lượng</span>
+                <strong style={{ fontSize: '0.9rem', color: '#1e293b' }}>{video?.duration || '1–2 phút'}</strong>
+              </div>
+              <div className="classroom-meta-item" style={{ flex: '1 1 140px', minWidth: '130px', padding: '12px 14px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px' }}>
+                <span style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', fontWeight: '600', marginBottom: '3px' }}>🎮 Hình thức</span>
+                <strong style={{ fontSize: '0.9rem', color: '#1e293b' }}>Video tương tác</strong>
+              </div>
+              <div className="classroom-meta-item" style={{ flex: '1 1 140px', minWidth: '130px', padding: '12px 14px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px' }}>
+                <span style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', fontWeight: '600', marginBottom: '3px' }}>📊 Cấp độ</span>
+                <strong style={{ fontSize: '0.9rem', color: '#1e293b' }}>{video?.category || 'Cơ bản'}</strong>
+              </div>
+              <div className="classroom-meta-item" style={{ flex: '1 1 140px', minWidth: '130px', padding: '12px 14px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px' }}>
+                <span style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', fontWeight: '600', marginBottom: '3px' }}>🗣️ Ngôn ngữ</span>
+                <strong style={{ fontSize: '0.9rem', color: '#1e293b' }}>Tiếng Việt</strong>
+              </div>
+            </div>
+
+            <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#1e293b', marginBottom: '10px' }}>Giới thiệu bài học</h3>
             <p style={{
               fontSize: '0.94rem',
               color: '#475569',
               lineHeight: '1.7',
-              marginBottom: '24px'
+              marginBottom: '24px',
+              whiteSpace: 'pre-line'
             }}>
               {video.description}
             </p>
 
+            {/* Mục tiêu học tập */}
+            <div style={{ backgroundColor: '#fef2f2', border: '1.5px solid #fee2e2', borderRadius: '12px', padding: '20px 22px', marginBottom: '28px' }}>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#1e293b', marginBottom: '12px' }}>🎯 Bạn sẽ học được gì?</h3>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {[
+                  'Nhận biết sớm dấu hiệu nguy hiểm và các nguồn gây cháy phổ biến.',
+                  'Ra quyết định thoát nạn đúng trong từng giai đoạn của tình huống.',
+                  'Tránh những sai lầm thường gặp khiến tình huống trở nên nguy hiểm hơn.',
+                  'Ghi nhớ quy trình xử lý và gọi đúng số cứu hỏa khẩn cấp 114.'
+                ].map((item, i) => (
+                  <li key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', fontSize: '0.9rem', color: '#475569', lineHeight: '1.55' }}>
+                    <span style={{ color: '#16a34a', fontWeight: '800', flexShrink: 0 }}>✓</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#1e293b', marginBottom: '12px' }}>Điểm nổi bật</h3>
             <div className="classroom-feature-cards" style={{ display: 'flex', gap: '20px', marginBottom: '30px' }}>
               <div style={{
                 flex: '1',
@@ -475,8 +535,8 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
               }}>
                 <div style={{ fontSize: '1.8rem', color: '#c2182c' }}>🛡️</div>
                 <div>
-                  <h4 style={{ fontSize: '0.88rem', fontWeight: '800', color: '#1e293b' }}>Chứng nhận quốc gia</h4>
-                  <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>Hoàn thành đạt 80% để nhận chứng chỉ</p>
+                  <h4 style={{ fontSize: '0.88rem', fontWeight: '800', color: '#1e293b' }}>Chứng nhận hoàn thành</h4>
+                  <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>Hoàn thành bài kiểm tra để ghi nhận tiến độ học tập</p>
                 </div>
               </div>
 
@@ -535,8 +595,9 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
           </div>
         )}
 
-        {/* Dynamic Reviews and Comment Section (matches design in image perfectly!) */}
-        <section style={{ marginTop: '10px', borderTop: activeTab !== 'desc' && activeTab !== 'docs' ? 'none' : '1px solid #f1f5f9', paddingTop: '20px' }}>
+        {/* Bình luận & Thảo luận — chỉ hiển thị trong tab Mô tả chi tiết */}
+        {activeTab === 'desc' && (
+        <section style={{ marginTop: '10px', borderTop: '1px solid #f1f5f9', paddingTop: '20px' }}>
           <div className="classroom-discussion-header" style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -701,6 +762,7 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
             )}
           </div>
         </section>
+        )}
 
       </div>
       </div>

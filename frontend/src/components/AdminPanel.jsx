@@ -120,8 +120,23 @@ function AdminPanel({ user, showToast }) {
     fetchAdminStats();
   }, []);
 
-  const handleRemindStudent = (studentName) => {
-    showToast(`✉ Đã gửi thông báo nhắc nhở học tập tới học viên ${studentName}!`, 'success');
+  const handleRemindStudent = async (stud) => {
+    try {
+      const adminId = user?.id || user?._id;
+      const res = await axios.post(`${API_BASE_URL}/api/auth/notifications`, {
+        adminId,
+        userId: stud.id || stud._id,
+        icon: '📣',
+        title: 'Nhắc nhở học tập từ Ban quản trị',
+        desc: `Hãy tiếp tục hoàn thành các bài học PCCC của bạn nhé, ${stud.fullName}!`,
+        type: 'reminder',
+      });
+      if (res.data?.success) {
+        showToast(`✉ Đã gửi nhắc học tới ${stud.fullName}!`, 'success');
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Không gửi được nhắc nhở!', 'error');
+    }
   };
 
   if (loading) {
@@ -431,7 +446,7 @@ function AdminPanel({ user, showToast }) {
                   <td style={{ padding: '16px', textAlign: 'right' }}>
                     {stud.role !== 'admin' && (
                       <button
-                        onClick={() => handleRemindStudent(stud.fullName)}
+                        onClick={() => handleRemindStudent(stud)}
                         style={{
                           padding: '6px 12px',
                           backgroundColor: '#f1f5f9',

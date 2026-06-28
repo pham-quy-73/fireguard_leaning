@@ -30,6 +30,16 @@ const UserSchema = new mongoose.Schema({
   watchedVideos: {
     type: [Number], // Store list of watched video IDs
     default: []
+  },
+  progress: {
+    type: [{
+      videoId: { type: Number, required: true },
+      percentage: { type: Number, default: 0 },
+      score: { type: Number, default: 0 },
+      maxScore: { type: Number, default: 0 },
+      completed: { type: Boolean, default: false }
+    }],
+    default: []
   }
 }, { timestamps: true });
 

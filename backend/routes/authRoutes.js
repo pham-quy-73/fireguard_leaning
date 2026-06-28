@@ -5,6 +5,7 @@ const {
   loginUser, 
   getUserProfile, 
   watchVideo,
+  saveProgress,
   getVideoComments,
   createVideoComment,
   getForumPosts,
@@ -19,6 +20,7 @@ router.post('/register', registerUser);
 router.post('/login', loginUser);
 router.get('/profile/:id', getUserProfile);
 router.post('/watch', watchVideo);
+router.post('/progress', saveProgress);
 
 // Comments & rating endpoints
 router.get('/comments/:videoId', getVideoComments);

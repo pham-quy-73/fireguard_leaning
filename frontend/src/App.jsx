@@ -6,9 +6,11 @@ import { API_BASE_URL } from './config';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
+import Homepage from './components/Homepage';
 
 function App() {
-  const [view, setView] = useState('login'); // 'login' | 'register' | 'videos_dashboard' | 'profile_dashboard'
+  // 'homepage' | 'login' | 'register' | 'videos_dashboard' | 'profile_dashboard'
+  const [view, setView] = useState('homepage');
   const [user, setUser] = useState(null);
   
   // Notification Toast state
@@ -37,13 +39,8 @@ function App() {
       })
       .catch(() => { /* ignore: badge falls back gracefully */ });
 
-    axios.get(`${API_BASE_URL}/api/videos`)
-      .then((res) => {
-        if (res.data?.success && Array.isArray(res.data.videos)) {
-          setVideoCount(res.data.videos.length);
-        }
-      })
-      .catch(() => { /* ignore: stat falls back gracefully */ });
+    // Cố định số bài học H5P cục bộ là 4 bài
+    setVideoCount(4);
   }, []);
 
   const showToast = (message, type = 'success') => {
@@ -67,7 +64,7 @@ function App() {
     localStorage.removeItem('user');
     sessionStorage.removeItem('user');
     setUser(null);
-    setView('login');
+    setView('homepage');
     showToast('Đã đăng xuất thành công!', 'success');
   };
 
@@ -105,6 +102,7 @@ function App() {
   );
 
   const isDashboardView = view === 'videos_dashboard' || view === 'profile_dashboard';
+  const isAuthView = view === 'login' || view === 'register';
 
   return (
     <div className="fullscreen-layout-container">
@@ -123,7 +121,7 @@ function App() {
           darkMode={darkMode}
           toggleDarkMode={toggleDarkMode}
         />
-      ) : (
+      ) : isAuthView ? (
         <div className="fullscreen-layout">
           <div className="auth-container">
             {/* Form pane for Register and Login */}
@@ -133,6 +131,13 @@ function App() {
                   <img src="/logo_e.png" style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="FIREGUARD Logo" />
                 </div>
                 <span className="brand-name">FIREGUARD</span>
+                <span
+                  className="auth-back-home"
+                  onClick={() => setView('homepage')}
+                  title="Về trang chủ"
+                >
+                  ← Trang chủ
+                </span>
               </div>
 
               {view === 'login' ? (
@@ -153,6 +158,12 @@ function App() {
             {renderBanner()}
           </div>
         </div>
+      ) : (
+        <Homepage
+          setView={setView}
+          totalStudents={totalStudents}
+          videoCount={videoCount}
+        />
       )}
     </div>
   );

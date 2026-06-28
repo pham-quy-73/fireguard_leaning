@@ -39,7 +39,12 @@
     document.addEventListener('DOMContentLoaded', function () {
       // Parse query string parameters (e.g. ?id=bai_1)
       const params = new URLSearchParams(window.location.search);
-      const lessonId = params.get('id') || 'bai_1';
+      let lessonId = params.get('id') || 'bai_1';
+      
+      // Tự động thêm tiền tố 'h5p/' nếu lessonId cấu hình chưa có (ví dụ 'bai_1' -> 'h5p/bai_1')
+      if (lessonId && !lessonId.startsWith('h5p/')) {
+        lessonId = 'h5p/' + lessonId;
+      }
       
       // Parse state string if available (encoded JSON string)
       const stateParam = params.get('state');
@@ -75,8 +80,9 @@
       
       // Initialize the standalone H5P player
       new H5PStandalone.H5P(el, options).then(function (h5p) {
-        mainInstance = h5p || (window.H5P && window.H5P.instances && window.H5P.instances[0]);
+        mainInstance = h5p;
         setupXAPI();
+        setupNativeVideoTracking();
       }).catch(function (error) {
         console.error("Lỗi nạp H5P:", error);
       });
@@ -89,10 +95,12 @@
               const statement = event.data.statement;
               const verbId = statement?.verb?.id || '';
 
+              // Lấy instance thật sự của H5P trên trang
+              const targetInstance = (window.H5P && window.H5P.instances && window.H5P.instances[0]) || mainInstance;
               let state = null;
-              if (mainInstance && typeof mainInstance.getCurrentState === 'function') {
+              if (targetInstance && typeof targetInstance.getCurrentState === 'function') {
                 try {
-                  state = mainInstance.getCurrentState();
+                  state = targetInstance.getCurrentState();
                 } catch (e) {
                   console.warn("Could not get current H5P state:", e);
                 }
@@ -106,8 +114,8 @@
                 if (state && state.video) {
                   if (state.video.progress !== undefined) {
                     percentage = Math.round(state.video.progress);
-                  } else if (state.video.time !== undefined && mainInstance.video && typeof mainInstance.video.getDuration === 'function') {
-                    const duration = mainInstance.video.getDuration();
+                  } else if (state.video.time !== undefined && targetInstance.video && typeof targetInstance.video.getDuration === 'function') {
+                    const duration = targetInstance.video.getDuration();
                     if (duration > 0) {
                       percentage = Math.round((state.video.time / duration) * 100);
                     }
@@ -134,6 +142,76 @@
             });
           }
         }
+      }
+
+      function setupNativeVideoTracking() {
+        // Polling để tìm thẻ video HTML5 render từ H5P (kể cả bên trong iframe của H5P)
+        const searchInterval = setInterval(function() {
+          let videoEl = el.querySelector('video');
+          
+          // Nếu không tìm thấy trực tiếp ở lớp ngoài, duyệt qua các iframe cùng nguồn để tìm video
+          if (!videoEl) {
+            const iframes = el.querySelectorAll('iframe');
+            for (let i = 0; i < iframes.length; i++) {
+              try {
+                const iframeDoc = iframes[i].contentDocument || iframes[i].contentWindow.document;
+                if (iframeDoc) {
+                  videoEl = iframeDoc.querySelector('video');
+                  if (videoEl) break;
+                }
+              } catch (e) {
+                // Bỏ qua lỗi CORS chéo domain nếu có
+              }
+            }
+          }
+
+          if (videoEl) {
+            clearInterval(searchInterval);
+            console.log("HTML5 Video element found inside H5P!");
+
+            let lastPostedPercent = 0;
+            
+            // Theo dõi tiến trình xem video (timeupdate)
+            videoEl.addEventListener('timeupdate', function() {
+              const current = videoEl.currentTime;
+              const duration = videoEl.duration;
+              
+              if (duration > 0) {
+                const percentage = Math.round((current / duration) * 100);
+                // Giảm tần suất gửi tin nhắn lên parent bằng cách chỉ gửi khi tăng tối thiểu 2%
+                if (percentage > lastPostedPercent && percentage - lastPostedPercent >= 2) {
+                  lastPostedPercent = percentage;
+                  if (window.parent) {
+                    window.parent.postMessage({
+                      type: 'H5P_XAPI',
+                      lessonId: lessonId,
+                      percentage: percentage,
+                      statement: null,
+                      state: null
+                    }, '*');
+                  }
+                }
+              }
+            });
+
+            // Khi video hoàn tất
+            videoEl.addEventListener('ended', function() {
+              console.log("HTML5 Video completed! Mark H5P as completed.");
+              if (window.parent) {
+                window.parent.postMessage({
+                  type: 'H5P_XAPI',
+                  lessonId: lessonId,
+                  percentage: 100,
+                  statement: {
+                    verb: { id: 'completed', display: { 'en-US': 'completed' } },
+                    result: { score: { raw: 10, max: 10 }, completion: true }
+                  },
+                  state: null
+                }, '*');
+              }
+            });
+          }
+        }, 1000);
       }
     });
   </script>

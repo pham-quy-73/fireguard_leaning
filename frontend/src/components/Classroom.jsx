@@ -53,6 +53,31 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
     setShowQuiz(false);
   }, [video]);
 
+  // Lắng nghe sự kiện xAPI từ local h5p-player.html iframe
+  useEffect(() => {
+    const handleH5PMessage = (event) => {
+      if (event.data && event.data.type === 'H5P_XAPI') {
+        const { percentage, lessonId, statement } = event.data;
+        console.log(`xAPI Progress for local H5P lesson ${lessonId}: ${percentage}%`);
+        
+        let score = 0;
+        let maxScore = 0;
+        if (statement?.result?.score) {
+          score = statement.result.score.raw ?? 0;
+          maxScore = statement.result.score.max ?? 0;
+        }
+        
+        // Gọi callback cập nhật tiến trình với đầy đủ phần trăm và điểm số
+        if (onComplete && video?.id) {
+          onComplete(video.id, percentage, score, maxScore);
+        }
+      }
+    };
+
+    window.addEventListener('message', handleH5PMessage);
+    return () => window.removeEventListener('message', handleH5PMessage);
+  }, [video, onComplete]);
+
   const handleSendComment = async (e) => {
     e.preventDefault();
     if (!commentText.trim()) {
@@ -302,7 +327,11 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
               </form>
             </div>
           ) : (
-            video.videoUrl && (video.videoUrl.startsWith('http') || video.videoUrl.includes('/embed')) ? (
+            video.videoUrl && (
+              video.videoUrl.startsWith('http') || 
+              video.videoUrl.includes('/embed') || 
+              video.videoUrl.includes('h5p-player.html')
+            ) ? (
               <iframe
                 src={video.videoUrl}
                 className="h5p-iframe"

@@ -26,50 +26,52 @@ import {
 
 // Dữ liệu dự phòng dùng khi không gọi được API (mất mạng / backend chưa chạy).
 // Nguồn chính thức là MongoDB qua GET /api/videos — xem state `videos` bên dưới.
-const FALLBACK_VIDEOS = [
+const LOCAL_H5P_VIDEOS = [
   {
     id: 1,
     title: "Mô phỏng tình huống cháy chung cư mini và kỹ năng thoát nạn an toàn.",
     category: "Cơ bản",
     categoryKey: "co-ban",
-    defaultPercentage: 45,
+    defaultPercentage: 0,
     isNew: true,
-    thumbnail: "/anhdemo.png",
-    videoUrl: "https://fireguards.h5p.com/content/1292915182618596269/embed",
-    description: `Bài học này tái hiện một tình huống cháy thực tế tại một chung cư mini, nơi tầng 1 chứa nhiều xe máy và xe điện đang sạc, chỉ có một cầu thang thoát nạn duy nhất và hệ thống báo cháy không hoạt động. 
-Người xem sẽ vào vai Nam, một sinh viên sống ở tầng 3, và phải đưa ra những quyết định quan trọng trong từng giai đoạn của sự cố.Mỗi lựa chọn đều dẫn đến những hậu quả khác nhau, giúp người xem hiểu rõ các nguy cơ thường gặp và học được cách ứng phó đúng khi xảy ra hỏa hoạn. 
-Mục đích của bài học là nâng cao nhận thức và kỹ năng thoát nạn khi xảy ra cháy tại chung cư mini, ký túc xá và nhà trọ nhiều tầng.`
+    thumbnail: "/training.png",
+    videoUrl: "/h5p-player.html?id=bai_1",
+    description: `Bài học này tái hiện một tình huống cháy thực tế tại một chung cư mini, nơi tầng 1 chứa nhiều xe máy và xe điện đang sạc, chỉ có một cầu thang thoát nạn duy nhất và hệ thống báo cháy không hoạt động.
+Người xem sẽ vào vai Nam, một sinh viên sống ở tầng 3, và phải đưa ra những quyết định quan trọng trong từng giai đoạn của sự cố. Mỗi lựa chọn đều dẫn đến những hậu quả khác nhau, giúp người xem hiểu rõ các nguy cơ thường gặp và học được cách ứng phó đúng khi xảy ra hỏa hoạn.`
   },
   {
     id: 2,
-    title: "Thoát hiểm giữa đêm đông: Sinh tồn trong vụ cháy phòng trọ",
-    category: "Thoát hiểm",
-    categoryKey: "thoat-hiem",
-    duration: "",
-    views: "856 lượt xem • 5 ngày trước",
+    title: "Tình huống cháy trong nhà",
+    category: "Cơ bản",
+    categoryKey: "co-ban",
     defaultPercentage: 0,
     isNew: false,
-    thumbnail: "/anhdemo.png",
-    videoUrl: "https://fireguards.h5p.com/content/1292915968955906289/embed",
-    description: `Giữa đêm đông Hà Nội dưới 15°C, Nam (25 tuổi, kỹ sư phần mềm) đang nằm lướt điện thoại trong phòng trọ 20m² sau ca làm việc mệt mỏi. 
-    Bất ngờ, chiếc bình nóng lạnh cũ trong nhà tắm phát nổ lớn, bắn ra tia lửa điện và bốc cháy dữ dội. 
-    Vỏ nhựa và rèm nylon nóng chảy khiến khói độc đen kịt nhanh chóng bao trùm trần nhà. 
-    Bị sặc khói và cay mắt, Nam đối mặt với quyết định sinh tử trong tích tắc khi căn phòng dần mất đi dưỡng khí.`
+    thumbnail: "/training.png",
+    videoUrl: "/h5p-player.html?id=bai_2",
+    description: `Kỹ năng thoát hiểm và sinh tồn khi có cháy lớn xảy ra trong không gian nhà riêng khép kín.`
   },
   {
     id: 3,
-    title: "Sơ cứu bỏng nhiệt và ngạt khói tại chỗ trong 5 phút đầu",
+    title: "Thoát Hiểm Trong Chung Cư Mini",
     category: "Thoát hiểm",
     categoryKey: "thoat-hiem",
-    duration: "",
-    views: "2.4k lượt xem • 1 tuần trước",
-    defaultPercentage: 85,
+    defaultPercentage: 0,
     isNew: false,
-    thumbnail: "/anhdemo.png",
-    videoUrl: "https://fireguards.h5p.com/content/1292916045740892609/embed",
-    description: `Nhận biết sớm cháy điện, tránh sai lầm hắt nước gây giật, lập tức ngắt cầu dao tổng, dùng bình chữa cháy chuyên dụng (khí CO2 hoặc bột) và nhanh chóng thoát hiểm để bảo vệ tính mạng`
+    thumbnail: "/training.png",
+    videoUrl: "/h5p-player.html?id=bai_3",
+    description: `Vào vai cư dân chung cư mini để xử lý các quyết định thoát hiểm khẩn cấp giữa đêm.`
   },
-
+  {
+    id: 4,
+    title: "Cháy ấm đun nước",
+    category: "Cơ bản",
+    categoryKey: "co-ban",
+    defaultPercentage: 0,
+    isNew: true,
+    thumbnail: "/training.png",
+    videoUrl: "/h5p-player.html?id=bai_4",
+    description: `Nhận biết và xử lý các sự cố cháy điện do thiết bị đun nước gia đình.`
+  }
 ];
 
 const INITIAL_NOTIFICATIONS = [
@@ -142,23 +144,9 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
   const [videosLoading, setVideosLoading] = useState(true);
 
   useEffect(() => {
-    let active = true;
-    axios.get(`${API_BASE_URL}/api/videos`)
-      .then((res) => {
-        if (!active) return;
-        if (res.data?.success && Array.isArray(res.data.videos) && res.data.videos.length) {
-          setVideos(res.data.videos);
-        } else {
-          setVideos(FALLBACK_VIDEOS); // DB rỗng hoặc shape lạ -> dùng dự phòng
-        }
-      })
-      .catch(() => {
-        if (active) setVideos(FALLBACK_VIDEOS); // mất mạng / backend chưa chạy
-      })
-      .finally(() => {
-        if (active) setVideosLoading(false);
-      });
-    return () => { active = false; };
+    // Luôn sử dụng danh sách 4 bài học H5P cục bộ
+    setVideos(LOCAL_H5P_VIDEOS);
+    setVideosLoading(false);
   }, []);
 
   // Lock body scroll when sidebar drawer is open on mobile
@@ -236,6 +224,7 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
 
   // Core array representing watched video IDs from live database
   const [watchedIds, setWatchedIds] = useState([]);
+  const [videoProgressList, setVideoProgressList] = useState([]);
 
   // Fetch the latest profile data from Mongoose database on mount or when user changes
   useEffect(() => {
@@ -249,12 +238,14 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
         if (response.data.success) {
           setDbUser(response.data.user);
           setWatchedIds(response.data.user.watchedVideos || []);
+          setVideoProgressList(response.data.user.progress || []);
         }
       } catch (err) {
         console.error("Lỗi đồng bộ dữ liệu MongoDB:", err);
         // Fallback to local storage state if connection offline
         setDbUser(user);
         setWatchedIds(user?.watchedVideos || []);
+        setVideoProgressList([]);
       } finally {
         setFetching(false);
       }
@@ -272,6 +263,7 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
           if (response.data.success) {
             setDbUser(response.data.user);
             setWatchedIds(response.data.user.watchedVideos || []);
+            setVideoProgressList(response.data.user.progress || []);
             showToast('Thông tin được đồng bộ trực tiếp từ Database!', 'success');
           }
         })
@@ -284,27 +276,37 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
     setActiveClassroomVideo(video);
   };
 
-  // Record a video as completed in live MongoDB database after passing the quiz
-  const handleCompleteVideo = async (videoId) => {
+  // Record a video as completed and updating progress in live MongoDB database
+  const handleUpdateProgress = async (videoId, percentage, score = 0, maxScore = 0) => {
     const activeId = user?.id || user?._id;
     if (!activeId) return;
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/auth/watch`, {
+      const response = await axios.post(`${API_BASE_URL}/api/auth/progress`, {
         userId: activeId,
-        videoId: Number(videoId)
+        videoId: Number(videoId),
+        percentage: Number(percentage),
+        score: Number(score),
+        maxScore: Number(maxScore)
       });
       if (response.data.success) {
-        // Sync local watched list
+        // Sync local watched and progress lists
         const updatedWatched = response.data.watchedVideos || [];
         setWatchedIds(updatedWatched);
+        const updatedProgress = response.data.progress || [];
+        setVideoProgressList(updatedProgress);
 
-        // Show success toast on completion
-        showToast(`Chúc mừng! Bạn đã trả lời đúng câu hỏi trắc nghiệm và hoàn thành bài học này!`, 'success');
+        if (percentage >= 100) {
+          showToast(`Chúc mừng! Bạn đã hoàn thành phần học của bài học này!`, 'success');
+        }
       }
     } catch (err) {
       console.error("Không thể lưu tiến trình học:", err);
     }
+  };
+
+  const handleCompleteVideo = (videoId) => {
+    handleUpdateProgress(videoId, 100, 10, 10);
   };
 
   const getFilteredVideos = () => {
@@ -637,9 +639,23 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
             <Classroom
               video={activeClassroomVideo}
               user={activeUser}
-              onBack={() => setActiveClassroomVideo(null)}
+              onBack={() => {
+                setActiveClassroomVideo(null);
+                // Auto sync user data when backing out
+                const activeId = activeUser?.id || activeUser?._id;
+                if (activeId) {
+                  axios.get(`${API_BASE_URL}/api/auth/profile/${activeId}`)
+                    .then(response => {
+                      if (response.data.success) {
+                        setDbUser(response.data.user);
+                        setWatchedIds(response.data.user.watchedVideos || []);
+                        setVideoProgressList(response.data.user.progress || []);
+                      }
+                    });
+                }
+              }}
               showToast={showToast}
-              onComplete={handleCompleteVideo}
+              onComplete={handleUpdateProgress}
             />
           ) : (
             <div className="dashboard-body">
@@ -669,9 +685,10 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
               ) : (
               <div className="video-catalog-grid">
                 {getFilteredVideos().map((video) => {
-                  const isWatched = watchedIds.includes(video.id);
-                  // Calculate actual progress status
-                  const percentShow = isWatched ? 100 : video.defaultPercentage;
+                  const userProg = videoProgressList.find(p => p.videoId === video.id);
+                  const dbPercentage = userProg ? userProg.percentage : 0;
+                  const isWatched = watchedIds.includes(video.id) || (userProg ? userProg.completed : false);
+                  const percentShow = isWatched ? 100 : dbPercentage;
                   const progressText = isWatched ? 'Đã hoàn thành' : (percentShow > 0 ? `Đã xem ${percentShow}%` : 'Chưa bắt đầu');
 
                   return (
@@ -693,19 +710,11 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
                           <span className={`video-category-tag ${video.categoryKey}`}>
                             {video.category}
                           </span>
-                          {/* <span className="video-stats">{video.views}</span> */}
                         </div>
 
                         <h3 className="video-card-title">{video.title}</h3>
 
                         <div className="progress-module">
-                          {/* <div className="progress-meta-row">
-                            <span className="progress-text">{progressText}</span>
-                            {percentShow > 0 && (
-                              <span className="progress-percentage">{percentShow}%</span>
-                            )}
-                          </div> */}
-
                           <div className="progress-track-bar">
                             <div
                               className="progress-fill-active"
@@ -727,6 +736,22 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
                           >
                             {isWatched ? '✓ Xem lại bài học' : (percentShow > 0 ? 'Tiếp tục xem' : 'Bắt đầu học')}
                           </button>
+
+                          {isWatched && userProg && userProg.maxScore > 0 && (
+                            <div className="video-card-score" style={{
+                              fontSize: '0.78rem',
+                              fontWeight: '700',
+                              color: '#10b981',
+                              marginTop: '8px',
+                              textAlign: 'center',
+                              backgroundColor: '#ecfdf5',
+                              padding: '4px 8px',
+                              borderRadius: '6px',
+                              border: '1px dashed #a7f3d0'
+                            }}>
+                              🏆 Điểm H5P: {userProg.score} / {userProg.maxScore}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

@@ -85,7 +85,8 @@ exports.registerUser = async (req, res) => {
         phone: newUser.phone,
         address: newUser.address,
         role: newUser.role,
-        watchedVideos: []
+        watchedVideos: [],
+        progress: []
       } 
     });
   } catch (error) {
@@ -124,7 +125,8 @@ exports.loginUser = async (req, res) => {
         phone: user.phone || '',
         address: user.address || '',
         role: user.role || (user.email === 'admin@fireguard.com' ? 'admin' : 'student'),
-        watchedVideos: user.watchedVideos || []
+        watchedVideos: user.watchedVideos || [],
+        progress: user.progress || []
       } 
     });
   } catch (error) {
@@ -152,7 +154,8 @@ exports.getUserProfile = async (req, res) => {
         phone: user.phone || '',
         address: user.address || '',
         role: user.role || (user.email === 'admin@fireguard.com' ? 'admin' : 'student'),
-        watchedVideos: user.watchedVideos || []
+        watchedVideos: user.watchedVideos || [],
+        progress: user.progress || []
       }
     });
   } catch (error) {
@@ -467,3 +470,76 @@ exports.getAdminStats = async (req, res) => {
     res.status(500).json({ success: false, message: "Không thể nạp dữ liệu thống kê từ Máy chủ!" });
   }
 };
+
+// @desc    Save/Update learning progress (percentage & xAPI score)
+// @route   POST /api/auth/progress
+// @access  Public
+exports.saveProgress = async (req, res) => {
+  try {
+    const { userId, videoId, percentage, score, maxScore } = req.body;
+
+    if (!userId || videoId === undefined || percentage === undefined) {
+      return res.status(400).json({ success: false, message: "Thiếu thông tin cập nhật tiến độ!" });
+    }
+
+    const vidId = Number(videoId);
+    const pct = Number(percentage);
+    const scr = Number(score || 0);
+    const maxScr = Number(maxScore || 0);
+    const isCompleted = pct >= 100;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "Người dùng không tồn tại!" });
+    }
+
+    // Initialize collections if undefined
+    if (!user.progress) user.progress = [];
+    if (!user.watchedVideos) user.watchedVideos = [];
+
+    // Find existing progress record
+    const progIndex = user.progress.findIndex(p => p.videoId === vidId);
+
+    if (progIndex > -1) {
+      // Update existing record (only update if percentage is higher or if completed status changes)
+      if (pct > user.progress[progIndex].percentage) {
+        user.progress[progIndex].percentage = pct;
+      }
+      // Always store the highest score obtained
+      if (scr > user.progress[progIndex].score) {
+        user.progress[progIndex].score = scr;
+        user.progress[progIndex].maxScore = maxScr;
+      }
+      if (isCompleted) {
+        user.progress[progIndex].completed = true;
+      }
+    } else {
+      // Create new progress record
+      user.progress.push({
+        videoId: vidId,
+        percentage: pct,
+        score: scr,
+        maxScore: maxScr,
+        completed: isCompleted
+      });
+    }
+
+    // Sync to watchedVideos array for compatibility with legacy watched list checking
+    if (isCompleted && !user.watchedVideos.includes(vidId)) {
+      user.watchedVideos.push(vidId);
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Cập nhật tiến trình học tập thành công!",
+      progress: user.progress || [],
+      watchedVideos: user.watchedVideos || []
+    });
+  } catch (error) {
+    console.error("Lỗi cập nhật tiến trình:", error);
+    res.status(500).json({ success: false, message: "Lỗi kết nối cơ sở dữ liệu khi cập nhật tiến trình!" });
+  }
+};
+

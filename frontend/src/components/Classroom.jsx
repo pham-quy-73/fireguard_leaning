@@ -572,6 +572,7 @@ function Classroom({
                           );
                           setCurrentQuiz(pool[randomIndex]);
                         }
+
                       }}
                       style={{
                         display: "block",

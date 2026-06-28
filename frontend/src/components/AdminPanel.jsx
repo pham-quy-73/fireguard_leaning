@@ -99,6 +99,61 @@ function AdminPanel({ user, showToast }) {
     }
   };
 
+  // State cho form thêm video mới
+  const [videoForm, setVideoForm] = useState(EMPTY_VIDEO_FORM);
+  const [submittingVideo, setSubmittingVideo] = useState(false);
+
+  const handleVideoFormChange = (field, value) => {
+    setVideoForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleAddVideo = async (e) => {
+    e.preventDefault();
+
+    const userId = user?.id || user?._id;
+    if (!userId) {
+      showToast('Không xác định được tài khoản quản trị. Vui lòng đăng nhập lại!', 'error');
+      return;
+    }
+    if (!videoForm.title.trim()) {
+      showToast('Vui lòng nhập tiêu đề bài học!', 'error');
+      return;
+    }
+    if (!videoForm.videoUrl.trim()) {
+      showToast('Vui lòng nhập đường dẫn (URL) video!', 'error');
+      return;
+    }
+
+    const categoryKey =
+      CATEGORY_OPTIONS.find((c) => c.label === videoForm.category)?.key || 'co-ban';
+
+    setSubmittingVideo(true);
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/videos`, {
+        userId,
+        title: videoForm.title,
+        category: videoForm.category,
+        categoryKey,
+        videoUrl: videoForm.videoUrl,
+        thumbnail: videoForm.thumbnail,
+        description: videoForm.description,
+        duration: videoForm.duration,
+        isNew: true
+      });
+
+      if (response.data.success) {
+        showToast(response.data.message || 'Đã thêm bài học mới!', 'success');
+        setVideoForm(EMPTY_VIDEO_FORM);
+        fetchAdminStats(); // Làm mới thống kê sau khi thêm
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Không thể thêm bài học. Vui lòng thử lại!';
+      showToast(msg, 'error');
+    } finally {
+      setSubmittingVideo(false);
+    }
+  };
+
   const fetchAdminStats = async () => {
     setLoading(true);
     setError(null);

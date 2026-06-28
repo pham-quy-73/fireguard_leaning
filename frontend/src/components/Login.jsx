@@ -9,20 +9,22 @@ function Login({ setView, setUser, showToast }) {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [formMsg, setFormMsg] = useState({ text: '', type: '' });
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     if (!email || !password) {
-      showToast('Vui lòng nhập Tên đăng nhập hoặc Email và Mật khẩu!', 'error');
+      setFormMsg({ text: 'Vui lòng nhập Tên đăng nhập hoặc Email và Mật khẩu!', type: 'error' });
       return;
     }
     
     setLoading(true);
+    setFormMsg({ text: '', type: '' }); // Clear prev message
     try {
       const response = await axios.post(`${API_BASE_URL}/api/auth/login`, { email, password });
       
       if (response.data.success) {
-        showToast(response.data.message, 'success');
+        setFormMsg({ text: response.data.message || 'Đăng nhập thành công!', type: 'success' });
         const loggedUser = response.data.user;
         setUser(loggedUser);
         
@@ -38,7 +40,7 @@ function Login({ setView, setUser, showToast }) {
       }
     } catch (err) {
       const msg = err.response?.data?.message || 'Không thể kết nối đến máy chủ!';
-      showToast(msg, 'error');
+      setFormMsg({ text: msg, type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -48,6 +50,25 @@ function Login({ setView, setUser, showToast }) {
     <>
       <h1 className="welcome-title">Chào mừng trở lại</h1>
       <p className="welcome-subtitle">Vui lòng đăng nhập để tiếp tục lộ trình học an toàn PCCC của bạn.</p>
+
+      {formMsg.text && (
+        <div style={{
+          padding: '12px 14px',
+          borderRadius: '8px',
+          fontSize: '0.84rem',
+          marginBottom: '16px',
+          border: `1px solid ${formMsg.type === 'success' ? '#10b981' : '#f87171'}`,
+          backgroundColor: formMsg.type === 'success' ? '#ecfdf5' : '#fef2f2',
+          color: formMsg.type === 'success' ? '#065f46' : '#991b1b',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          fontWeight: '500'
+        }}>
+          <span>{formMsg.type === 'success' ? '✅' : '❌'}</span>
+          <span>{formMsg.text}</span>
+        </div>
+      )}
 
       <form className="auth-form" onSubmit={handleLoginSubmit}>
         <div className="form-group">
@@ -59,7 +80,10 @@ function Login({ setView, setUser, showToast }) {
               className="form-input" 
               placeholder="Username hoặc email..."
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (formMsg.text) setFormMsg({ text: '', type: '' });
+              }}
               required
               disabled={loading}
             />
@@ -69,7 +93,7 @@ function Login({ setView, setUser, showToast }) {
         <div className="form-group">
           <div className="form-label-row">
             <span className="form-label">Mật khẩu</span>
-            <span className="forgot-password-link" onClick={() => showToast('Tính năng khôi phục mật khẩu sẽ được hỗ trợ sơm!', 'success')}>Quên mật khẩu?</span>
+            <span className="forgot-password-link" onClick={() => setFormMsg({ text: 'Tính năng khôi phục mật khẩu sẽ được hỗ trợ sớm!', type: 'success' })}>Quên mật khẩu?</span>
           </div>
           <div className="input-wrapper">
             <span className="input-icon-left"><LockIcon /></span>
@@ -78,7 +102,10 @@ function Login({ setView, setUser, showToast }) {
               className="form-input" 
               placeholder="••••••••"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (formMsg.text) setFormMsg({ text: '', type: '' });
+              }}
               required
               disabled={loading}
             />

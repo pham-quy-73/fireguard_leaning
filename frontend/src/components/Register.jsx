@@ -13,6 +13,7 @@ function Register({ setView, showToast }) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [formMsg, setFormMsg] = useState({ text: '', type: '' });
 
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
@@ -71,6 +72,7 @@ function Register({ setView, showToast }) {
     }
 
     setErrors({});
+    setFormMsg({ text: '', type: '' });
     setLoading(true);
     try {
       const response = await axios.post(`${API_BASE_URL}/api/auth/register`, { 
@@ -83,7 +85,7 @@ function Register({ setView, showToast }) {
       });
       
       if (response.data.success) {
-        showToast(response.data.message, 'success');
+        setFormMsg({ text: response.data.message || 'Đăng ký tài khoản thành công!', type: 'success' });
         setTimeout(() => {
           setView('login');
         }, 1200);
@@ -95,7 +97,7 @@ function Register({ setView, showToast }) {
       } else if (msg.includes('Email')) {
         setErrors({ email: msg });
       } else {
-        showToast(msg, 'error');
+        setFormMsg({ text: msg, type: 'error' });
       }
     } finally {
       setLoading(false);
@@ -106,6 +108,25 @@ function Register({ setView, showToast }) {
     <>
       <h1 className="welcome-title">Đăng ký tài khoản</h1>
       <p className="welcome-subtitle">Bắt đầu lộ trình học tập để trang bị kỹ năng tự bảo vệ bản thân và cộng đồng.</p>
+
+      {formMsg.text && (
+        <div style={{
+          padding: '12px 14px',
+          borderRadius: '8px',
+          fontSize: '0.84rem',
+          marginBottom: '16px',
+          border: `1px solid ${formMsg.type === 'success' ? '#10b981' : '#f87171'}`,
+          backgroundColor: formMsg.type === 'success' ? '#ecfdf5' : '#fef2f2',
+          color: formMsg.type === 'success' ? '#065f46' : '#991b1b',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          fontWeight: '500'
+        }}>
+          <span>{formMsg.type === 'success' ? '✅' : '❌'}</span>
+          <span>{formMsg.text}</span>
+        </div>
+      )}
 
       <form className="auth-form" onSubmit={handleRegisterSubmit}>
         <div className="form-group">

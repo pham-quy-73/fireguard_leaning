@@ -40,7 +40,7 @@ const FALLBACK_VIDEOS = [
     thumbnail: "Chaychungcu_Thumbnail.png",
    
 
-    videoUrl: "https://fireguards.h5p.com/content/1292915182618596269/embed",
+    videoUrl: "https://fireguard.h5p.com/content/1292933141119135919/embed",
     description: `Bài học này tái hiện một tình huống cháy thực tế tại một chung cư mini, nơi tầng 1 chứa nhiều xe máy và xe điện đang sạc, chỉ có một cầu thang thoát nạn duy nhất và hệ thống báo cháy không hoạt động. 
 Người xem sẽ vào vai Nam, một sinh viên sống ở tầng 3, và phải đưa ra những quyết định quan trọng trong từng giai đoạn của sự cố.Mỗi lựa chọn đều dẫn đến những hậu quả khác nhau, giúp người xem hiểu rõ các nguy cơ thường gặp và học được cách ứng phó đúng khi xảy ra hỏa hoạn. 
 Mục đích của bài học là nâng cao nhận thức và kỹ năng thoát nạn khi xảy ra cháy tại chung cư mini, ký túc xá và nhà trọ nhiều tầng.`
@@ -57,7 +57,7 @@ Mục đích của bài học là nâng cao nhận thức và kỹ năng thoát 
     thumbnail: "Chaybinhnonglanh_Thumbnail.png",
 
 
-    videoUrl: "https://fireguards.h5p.com/content/1292915968955906289/embed",
+    videoUrl: "https://fireguard.h5p.com/content/1292933146469393139/embed",
     description: `Giữa đêm đông Hà Nội dưới 15°C, Nam (25 tuổi, kỹ sư phần mềm) đang nằm lướt điện thoại trong phòng trọ 20m² sau ca làm việc mệt mỏi. 
     Bất ngờ, chiếc bình nóng lạnh cũ trong nhà tắm phát nổ lớn, bắn ra tia lửa điện và bốc cháy dữ dội. 
     Vỏ nhựa và rèm nylon nóng chảy khiến khói độc đen kịt nhanh chóng bao trùm trần nhà. 
@@ -77,7 +77,7 @@ Mục đích của bài học là nâng cao nhận thức và kỹ năng thoát 
     thumbnail: "Chayamdunnuoc_Thumbnail.png",
 
 
-    videoUrl: "https://fireguards.h5p.com/content/1292916045740892609/embed",
+    videoUrl: "https://fireguard.h5p.com/content/1292933229411731469/embed",
     description: `Nhận biết sớm cháy điện, tránh sai lầm hắt nước gây giật, lập tức ngắt cầu dao tổng, dùng bình chữa cháy chuyên dụng (khí CO2 hoặc bột) và nhanh chóng thoát hiểm để bảo vệ tính mạng`
   },
 
@@ -123,6 +123,35 @@ const INITIAL_NOTIFICATIONS = [
   },
 ];
 
+// Định dạng thời gian tương đối theo mốc thật (createdAt) — F5 vẫn đúng
+function formatTimeAgo(ts) {
+  if (!ts) return '';
+  const d = ts instanceof Date ? ts : new Date(ts);
+  const ms = d.getTime();
+  if (isNaN(ms)) return '';
+  const diff = Date.now() - ms;
+  const sec = Math.floor(diff / 1000);
+  if (sec < 60) return 'Vừa xong';
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min} phút trước`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr} giờ trước`;
+  const day = Math.floor(hr / 24);
+  if (day < 7) return `${day} ngày trước`;
+  return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+// Mốc thời gian ổn định cho thông báo không có createdAt thật (nhớ lần đầu xuất hiện)
+function getStableTs(id) {
+  let map = {};
+  try { map = JSON.parse(localStorage.getItem('notifSeen') || '{}'); } catch (e) { map = {}; }
+  if (!map[id]) {
+    map[id] = Date.now();
+    try { localStorage.setItem('notifSeen', JSON.stringify(map)); } catch (e) { /* ignore */ }
+  }
+  return map[id];
+}
+
 // Khung hình trích từ chính video của từng khóa (Cloudinary so_15) — map theo tiêu đề.
 // Nguồn xác định theo URL video gốc H5P do người dùng cung cấp (đối chiếu tên file nguồn).
 const COURSE_FRAMES = {
@@ -132,19 +161,31 @@ const COURSE_FRAMES = {
   amdunnuoc: 'https://res.cloudinary.com/dzasig10l/video/upload/so_15,w_640,h_360,c_fill,q_auto/v1782235450/files-6a353f5a413e0_cwbln4.jpg',
 };
 const FRAME_FALLBACK = [COURSE_FRAMES.chungcu, COURSE_FRAMES.trongnha, COURSE_FRAMES.mini, COURSE_FRAMES.amdunnuoc];
+// Ảnh cố định theo id bài học: 1=chung cư mini, 2=bình nóng lạnh, 3=chung cư, 4=ấm đun nước
+const FRAME_BY_ID = {
+  1: COURSE_FRAMES.chungcu,
+  2: COURSE_FRAMES.trongnha,
+  3: COURSE_FRAMES.mini,
+  4: COURSE_FRAMES.amdunnuoc,
+};
+// Đồng bộ 4 bài học theo VỊ TRÍ thẻ (ảnh 1..4): tên + link H5P mới. Áp bất kể id/dữ liệu DB.
+const NEW_VIDEOS = [
+  { title: 'Cháy chung cư mini',  videoUrl: 'https://fireguard.h5p.com/content/1292933141119135919/embed' }, // ảnh 1
+  { title: 'Cháy bình nóng lạnh', videoUrl: 'https://fireguard.h5p.com/content/1292933146469393139/embed' }, // ảnh 2
+  { title: 'Cháy chung cư',       videoUrl: 'https://fireguard.h5p.com/content/1292933165577314319/embed' }, // ảnh 3
+  { title: 'Cháy ấm đun nước',    videoUrl: 'https://fireguard.h5p.com/content/1292933229411731469/embed' }, // ảnh 4
+];
+const applyVideoUrls = (list) => (Array.isArray(list) ? list.map((v, i) => (NEW_VIDEOS[i] ? { ...v, title: NEW_VIDEOS[i].title, videoUrl: NEW_VIDEOS[i].videoUrl } : v)) : list);
+
 function getCourseThumb(video, idx) {
-  const t = ((video && video.title) || '').toLowerCase();
-  if (t.includes('mini')) return COURSE_FRAMES.mini;
-  if (t.includes('trong nhà') || t.includes('trong nha')) return COURSE_FRAMES.trongnha;
-  if (t.includes('ấm') || t.includes('đun nước') || t.includes('dun nuoc') || t.includes('điện') || t.includes('dien') ||
-      t.includes('sơ cứu') || t.includes('so cuu') || t.includes('bỏng') || t.includes('bong') ||
-      t.includes('ngạt khói') || t.includes('ngat khoi')) return COURSE_FRAMES.amdunnuoc;
-  if (t.includes('chung cư') || t.includes('chung cu') || t.includes('cao tầng') || t.includes('cao tang')) return COURSE_FRAMES.chungcu;
+  // Ảnh theo đúng vị trí thẻ (ảnh 1..4)
   return FRAME_FALLBACK[idx % FRAME_FALLBACK.length];
 }
 
-function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clearPendingVideo, darkMode, toggleDarkMode }) {
-  const [dashboardView, setDashboardView] = useState('discussion'); // 'announcements' | 'discussion' | 'videos' | 'quiz' | 'profile' | 'admin' | 'settings'
+function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clearPendingVideo, darkMode, toggleDarkMode, initialView = 'discussion', onChangePassword }) {
+  const [dashboardView, setDashboardView] = useState(() => localStorage.getItem('lastDashboardView') || initialView);
+  // Lưu tab hiện tại để F5 không mất trang
+  useEffect(() => { localStorage.setItem('lastDashboardView', dashboardView); }, [dashboardView]); // 'announcements' | 'discussion' | 'videos' | 'quiz' | 'profile' | 'admin' | 'settings'
   // Sidebar expandable groups
   const [forumGroupOpen, setForumGroupOpen] = useState(true);
   const [learnGroupOpen, setLearnGroupOpen] = useState(true);
@@ -154,20 +195,23 @@ function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clea
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Notifications
-  const [notifications, setNotifications] = useState(() => {
-    // Khôi phục trạng thái 'đã đọc' đã lưu để reload không hiện lại
-    let readIds = [];
-    try { readIds = JSON.parse(localStorage.getItem('readNotifs') || '[]'); } catch (e) { readIds = []; }
-    return INITIAL_NOTIFICATIONS.map((n) => (readIds.includes(n.id) ? { ...n, isRead: true } : n));
-  });
+  // Bell hiển thị dữ liệu thật: announcement (admin đăng) + nhắc riêng từ DB + bài học mới
+  const [notifications, setNotifications] = useState([]);
 
   // Thông báo gửi riêng cho học viên này từ DB (vd admin nhắc học)
   const [dbNotifs, setDbNotifs] = useState([]);
 
+  // Thông báo chung do admin đăng (Announcement) -> hiện cho mọi học viên ở chuông
+  const [annNotifs, setAnnNotifs] = useState([]);
+
   // Lưu danh sách thông báo đã đọc vào localStorage mỗi khi thay đổi
   useEffect(() => {
-    const readIds = notifications.filter((n) => n.isRead).map((n) => n.id);
-    try { localStorage.setItem('readNotifs', JSON.stringify(readIds)); } catch (e) { /* ignore */ }
+    // Cộng dồn (không ghi đè) để không mất trạng thái đã đọc khi danh sách tạm thời thiếu mục
+    let prev = [];
+    try { prev = JSON.parse(localStorage.getItem('readNotifs') || '[]'); } catch (e) { prev = []; }
+    const cur = notifications.filter((n) => n.isRead).map((n) => n.id);
+    const union = Array.from(new Set([...prev, ...cur]));
+    try { localStorage.setItem('readNotifs', JSON.stringify(union)); } catch (e) { /* ignore */ }
   }, [notifications]);
 
   // Nạp thông báo riêng của học viên từ DB
@@ -182,9 +226,7 @@ function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clea
             icon: n.icon || '📣',
             title: n.title,
             desc: n.desc,
-            time: n.createdAt
-              ? new Date(n.createdAt).toLocaleDateString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
-              : 'Mới',
+            ts: n.createdAt ? new Date(n.createdAt).getTime() : getStableTs(n._id),
             isRead: !!n.isRead,
             target: null,
           })));
@@ -192,6 +234,25 @@ function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clea
       })
       .catch(() => { /* ignore */ });
   }, [user]);
+
+  // Nạp announcement (admin đăng) -> hiện ở chuông cho mọi học viên, kèm thời gian thật
+  useEffect(() => {
+    axios.get(`${API_BASE_URL}/api/auth/announcements`)
+      .then((res) => {
+        if (res.data?.success) {
+          setAnnNotifs((res.data.announcements || []).map((a) => ({
+            id: `ann-${a._id}`,
+            icon: a.pinned ? '📌' : '📢',
+            title: a.title,
+            desc: a.content,
+            ts: a.createdAt ? new Date(a.createdAt).getTime() : getStableTs(`ann-${a._id}`),
+            isRead: false,
+            target: 'announcements',
+          })));
+        }
+      })
+      .catch(() => { /* ignore */ });
+  }, []);
 
   const [notifOpen, setNotifOpen] = useState(false);
   const notifPanelRef = useRef(null);
@@ -223,17 +284,15 @@ function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clea
         icon: '🔥',
         title: `Bài học mới: ${v.title}`,
         desc: 'Vừa được thêm vào kho khóa học. Mở xem ngay!',
-        time: 'Mới',
+        ts: v.createdAt ? new Date(v.createdAt).getTime() : getStableTs(`video-new-${v.id}`),
         isRead: false,
         target: 'videos',
       }));
-    // Bỏ thông báo 'bài học mới' tĩnh mẫu (n1) vì đã có bản động ở trên
-    const staticOnes = INITIAL_NOTIFICATIONS.filter((n) => n.id !== 'n1');
-    const merged = [...dbNotifs, ...dynamicNew, ...staticOnes].map((n) =>
-      readIds.includes(n.id) ? { ...n, isRead: true } : n
-    );
+    const merged = [...annNotifs, ...dbNotifs, ...dynamicNew]
+      .map((n) => (readIds.includes(n.id) ? { ...n, isRead: true } : n))
+      .sort((a, b) => (b.ts || 0) - (a.ts || 0));
     setNotifications(merged);
-  }, [videos, dbNotifs]);
+  }, [videos, dbNotifs, annNotifs]);
   const [videosLoading, setVideosLoading] = useState(true);
 
   useEffect(() => {
@@ -242,7 +301,7 @@ function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clea
       .then((res) => {
         if (!active) return;
         if (res.data?.success && Array.isArray(res.data.videos) && res.data.videos.length) {
-          setVideos(res.data.videos);
+          setVideos(applyVideoUrls(res.data.videos));
         } else {
           setVideos(FALLBACK_VIDEOS); // DB rỗng hoặc shape lạ -> dùng dự phòng
         }
@@ -339,6 +398,12 @@ function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clea
   // Core array representing watched video IDs from live database
   const [watchedIds, setWatchedIds] = useState([]);
 
+  // Tiến độ xem từng video (videoId -> %), lấy thật từ DB
+  const [progressMap, setProgressMap] = useState({});
+  const progressSaveRef = useRef({});
+  // Điểm đạt được từng video (videoId -> {raw,max}), vd điểm H5P
+  const [scoreMap, setScoreMap] = useState({});
+
   // Fetch the latest profile data from Mongoose database on mount or when user changes
   useEffect(() => {
     const fetchLatestProfile = async () => {
@@ -351,6 +416,8 @@ function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clea
         if (response.data.success) {
           setDbUser(response.data.user);
           setWatchedIds(response.data.user.watchedVideos || []);
+          setProgressMap(response.data.user.videoProgress || {});
+          setScoreMap(response.data.user.videoScores || {});
         }
       } catch (err) {
         console.error("Lỗi đồng bộ dữ liệu MongoDB:", err);
@@ -374,6 +441,9 @@ function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clea
           if (response.data.success) {
             setDbUser(response.data.user);
             setWatchedIds(response.data.user.watchedVideos || []);
+            setProgressMap(response.data.user.videoProgress || {});
+            setScoreMap(response.data.user.videoScores || {});
+          setScoreMap(response.data.user.videoScores || {});
           }
         })
         .catch(err => console.log('Không thể làm mới dữ liệu từ Database'));
@@ -408,6 +478,37 @@ function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clea
     }
   };
 
+  // Lưu tiến độ xem video THẬT (gọi realtime trong lúc xem), tự hoàn thành khi >= 90%
+  const handleVideoProgress = (videoId, percent) => {
+    const pct = Math.max(0, Math.min(100, Math.round(percent)));
+    setProgressMap((prev) => {
+      const cur = prev[String(videoId)] || 0;
+      if (pct <= cur) return prev;
+      return { ...prev, [String(videoId)]: pct };
+    });
+    const last = progressSaveRef.current[String(videoId)] || 0;
+    if (pct - last >= 5 || pct >= 90) {
+      progressSaveRef.current[String(videoId)] = pct;
+      const activeId = user?.id || user?._id;
+      if (!activeId) return;
+      axios.post(`${API_BASE_URL}/api/auth/progress`, { userId: activeId, videoId: Number(videoId), percent: pct })
+        .then((res) => {
+          if (res.data?.success && res.data.watchedVideos) setWatchedIds(res.data.watchedVideos);
+        })
+        .catch(() => { /* ignore */ });
+    }
+  };
+
+  // Lưu điểm đạt được của video (vd điểm H5P gửi qua xAPI)
+  const handleVideoScore = (videoId, raw, max) => {
+    if (!max || max <= 0) return;
+    setScoreMap((prev) => ({ ...prev, [String(videoId)]: { raw: Number(raw) || 0, max: Number(max) } }));
+    const activeId = user?.id || user?._id;
+    if (!activeId) return;
+    axios.post(`${API_BASE_URL}/api/auth/progress`, { userId: activeId, videoId: Number(videoId), scoreRaw: Number(raw) || 0, scoreMax: Number(max) })
+      .catch(() => { /* ignore */ });
+  };
+
   const getFilteredVideos = () => {
 
     if (activeTab === 'Tất cả') return videos;
@@ -427,6 +528,19 @@ function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clea
   const isAdmin = activeUser?.role === 'admin' || activeUser?.email === 'admin@fireguard.com';
   const roleName = isAdmin ? 'Quản trị viên FIREGUARD' : 'Học viên';
   const firstLetter = displayName.charAt(0).toUpperCase();
+  // Nhãn breadcrumb theo mục đang xem
+  const viewLabels = {
+    announcements: 'Thông báo',
+    discussion: 'Diễn đàn',
+    videos: 'Bài học',
+    quiz: 'Quiz',
+    profile: 'Hồ sơ',
+    admin: 'Quản trị',
+    settings: 'Cài đặt',
+  };
+  const currentCrumb = activeClassroomVideo
+    ? (activeClassroomVideo.title || 'Bài học')
+    : (viewLabels[dashboardView] || 'Trang');
 
 
   const handleSidebarAdminClick = () => {
@@ -513,7 +627,7 @@ function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clea
         {/* Brand / Logo — click returns to home (Diễn đàn) */}
         <div
           className="sidebar-brand-box sidebar-brand-clickable"
-          onClick={handleGoHome}
+          onClick={() => { if (goHome) goHome(); closeSidebar(); }}
           role="button"
           tabIndex={0}
           title="Về trang chủ"
@@ -556,17 +670,6 @@ function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clea
         </div>
 
         <nav className="sidebar-menu">
-
-          {/* Về trang chủ (landing) — chiều quay lại từ dashboard */}
-          <div
-            className="sidebar-item"
-            onClick={() => { if (goHome) goHome(); closeSidebar(); }}
-            role="button"
-            tabIndex={0}
-          >
-            <span style={{ marginRight: '10px', fontSize: '1rem' }}>🏠</span>
-            Trang chủ
-          </div>
 
           {/* GROUP: Diễn đàn */}
           <div className="sidebar-group">
@@ -644,6 +747,22 @@ function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clea
               Trang Quản trị
             </div>
           )}
+
+          <div
+            className={`sidebar-item ${dashboardView === 'announcements' ? 'active' : ''}`}
+            onClick={() => goToView('announcements')}
+            role="button"
+            tabIndex={0}
+            style={{
+              borderLeft:
+                dashboardView === 'announcements'
+                  ? '3px solid var(--primary-red)'
+                  : '3px solid transparent'
+            }}
+          >
+            <NotifyBellIcon />
+            Thông báo
+          </div>
 
           <div
 
@@ -792,7 +911,7 @@ function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clea
                           <span className="notif-item-body">
                             <span className="notif-item-title">{n.title}</span>
                             <span className="notif-item-desc">{n.desc}</span>
-                            <span className="notif-item-time">{n.time}</span>
+                            <span className="notif-item-time">{formatTimeAgo(n.ts)}</span>
                           </span>
                           {!n.isRead && <span className="notif-dot" />}
                         </button>
@@ -811,8 +930,18 @@ function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clea
           </div>
         </header>
 
+        {/* Breadcrumb: Trang chủ > mục hiện tại */}
+        <nav className="dash-breadcrumb" aria-label="breadcrumb">
+          <button type="button" className="dash-bc-home" onClick={() => { if (goHome) goHome(); }}>
+            <span className="dash-bc-ic">🏠</span>
+            <span>Trang chủ</span>
+          </button>
+          <span className="dash-bc-sep">›</span>
+          <span className="dash-bc-current">{currentCrumb}</span>
+        </nav>
+
         {dashboardView === 'announcements' ? (
-          <Announcements user={activeUser} showToast={showToast} />
+          <Announcements user={activeUser} showToast={showToast} sideNotifs={notifications.filter((n) => !String(n.id).startsWith('ann-'))} />
         ) : dashboardView === 'discussion' ? (
           <Forum user={activeUser} showToast={showToast} />
         ) : dashboardView === 'quiz' ? (
@@ -831,6 +960,9 @@ function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clea
               onBack={() => setActiveClassroomVideo(null)}
               showToast={showToast}
               onComplete={handleCompleteVideo}
+              onProgress={handleVideoProgress}
+              onScore={handleVideoScore}
+              initialPercent={Math.round(progressMap[String(activeClassroomVideo.id)] || 0)}
             />
           ) : (
             <div className="dashboard-body">
@@ -861,9 +993,10 @@ function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clea
               <div className="video-catalog-grid">
                 {getFilteredVideos().map((video, idx) => {
                   const isWatched = watchedIds.includes(video.id);
-                  // Calculate actual progress status
-                  const percentShow = isWatched ? 100 : video.defaultPercentage;
-                  const progressText = isWatched ? 'Đã hoàn thành' : (percentShow > 0 ? `Đã xem ${percentShow}%` : 'Chưa bắt đầu');
+                  // Tiến độ THẬT từ DB (không đánh dấu giả)
+                  const pct = isWatched ? 100 : Math.round(progressMap[String(video.id)] || 0);
+                  const progressText = isWatched ? 'Đã hoàn thành' : (pct > 0 ? `Đã xem ${pct}%` : 'Chưa bắt đầu');
+                  const vscore = scoreMap[String(video.id)];
 
                   return (
                     <div key={video.id} className="video-catalog-card">
@@ -890,17 +1023,27 @@ function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clea
                         <h3 className="video-card-title">{video.title}</h3>
 
                         <div className="progress-module">
-                          {/* <div className="progress-meta-row">
+                          <div className="progress-meta-row">
                             <span className="progress-text">{progressText}</span>
-                            {percentShow > 0 && (
-                              <span className="progress-percentage">{percentShow}%</span>
-                            )}
-                          </div> */}
+                            <span className="progress-percentage" style={{ color: isWatched ? '#10b981' : '' }}>{pct}%</span>
+                          </div>
+                          <div className="progress-track-bar">
+                            <div
+                              className="progress-fill-active"
+                              style={{ width: `${pct}%`, backgroundColor: isWatched ? '#10b981' : '' }}
+                            />
+                          </div>
 
                           {isWatched ? (
                             <div className="course-status-badge done">✓ Đã hoàn thành</div>
                           ) : (
                             <div className="course-status-badge todo">● Chưa hoàn thành</div>
+                          )}
+
+                          {vscore && vscore.max > 0 && (
+                            <div className="course-score-row">
+                              🏆 Đạt {vscore.raw}/{vscore.max} điểm
+                            </div>
                           )}
 
                           <button
@@ -1004,6 +1147,9 @@ function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clea
                 </div>
               </div>
 
+              <button type="button" className="settings-changepw-btn" onClick={onChangePassword}>
+                🔑 Đổi mật khẩu
+              </button>
               <button className="logout-btn settings-logout-btn" onClick={handleLogout}>
                 Đăng xuất tài khoản
               </button>

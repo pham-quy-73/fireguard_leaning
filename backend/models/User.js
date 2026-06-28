@@ -30,6 +30,16 @@ const UserSchema = new mongoose.Schema({
   watchedVideos: {
     type: [Number], // Store list of watched video IDs
     default: []
+  },
+  videoProgress: {
+    type: Map, // videoId(string) -> phần trăm đã xem (0..100)
+    of: Number,
+    default: {}
+  },
+  videoScores: {
+    type: Map, // videoId(string) -> { raw, max } điểm đạt được (vd H5P)
+    of: mongoose.Schema.Types.Mixed,
+    default: {}
   }
 }, { timestamps: true });
 

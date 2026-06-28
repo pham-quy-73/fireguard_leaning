@@ -1,5 +1,30 @@
 const mongoose = require('mongoose');
 
+// Trả lời (reply) dưới mỗi bài diễn đàn — lưu kèm trong ForumPost để F5 không mất
+const ReplySchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  userName: {
+    type: String,
+    required: true
+  },
+  avatarLetter: {
+    type: String,
+    default: 'A'
+  },
+  role: {
+    type: String,
+    default: 'Học viên'
+  },
+  content: {
+    type: String,
+    required: true
+  }
+}, { timestamps: true });
+
 // General discussion board posts (separate from per-video reviews in Comment.js)
 const ForumPostSchema = new mongoose.Schema({
   userId: {
@@ -30,6 +55,10 @@ const ForumPostSchema = new mongoose.Schema({
   verified: {
     type: Boolean,
     default: false
+  },
+  replies: {
+    type: [ReplySchema],
+    default: []
   }
 }, { timestamps: true });
 

@@ -3,7 +3,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import { getQuizForVideo } from '../data/quizData';
 
-function Classroom({ video, user, onBack, showToast, onComplete }) {
+function Classroom({ video, user, onBack, showToast, onComplete, onProgress, onScore, initialPercent = 0 }) {
   const [activeTab, setActiveTab] = useState('desc'); // 'desc' | 'docs'
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState('');
@@ -22,6 +22,10 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
   const completedSentRef = useRef(false);
   const onCompleteRef = useRef(onComplete);
   useEffect(() => { onCompleteRef.current = onComplete; });
+  const onProgressRef = useRef(onProgress);
+  useEffect(() => { onProgressRef.current = onProgress; });
+  const onScoreRef = useRef(onScore);
+  useEffect(() => { onScoreRef.current = onScore; });
 
   // Tự động ghi nhận hoàn thành KHI người học LÀM XONG bài
   // (player H5P cục bộ gửi tín hiệu completed/passed -> percentage 100).
@@ -45,15 +49,59 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
       const verbId = (stmt && stmt.verb && stmt.verb.id) || '';
       const verbDisp = (stmt && stmt.verb && stmt.verb.display) ? Object.values(stmt.verb.display).join(' ') : '';
       const verb = (verbId + ' ' + verbDisp).toLowerCase();
-      const completion = !!(stmt && stmt.result && stmt.result.completion === true);
-      const pct = Number(data.percentage);
-      const finished = completion || (Number.isFinite(pct) && pct >= 100) || /completed|passed|mastered/.test(verb);
-      if (finished) markComplete();
+      const result = stmt && stmt.result;
+      const completion = !!(result && result.completion === true);
+
+      // ĐIỂM (score) từ H5P -> hiển thị riêng dòng 'Đạt X/Y điểm' (tách khỏi % đã xem)
+      if (result && result.score && onScoreRef.current && video?.id) {
+        const sc = result.score;
+        let max = Number(sc.max);
+        let raw = Number(sc.raw);
+        if (!(max > 0) && Number.isFinite(Number(sc.scaled))) { max = 100; raw = Math.round(Number(sc.scaled) * 100); }
+        if (Number.isFinite(raw) && max > 0) onScoreRef.current(video.id, raw, max);
+      }
+
+      // Nội dung không chấm điểm nhưng báo hoàn thành -> coi như đã xem 100%
+      if (completion && !(result && result.score) && onProgressRef.current && video?.id) {
+        onProgressRef.current(video.id, 100);
+      }
     };
 
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
   }, [video?.id]);
+
+  // Đo tiến độ theo THỜI GIAN thực sự ở trong bài học (chỉ tính khi tab đang mở)
+  // -> dùng cho video nhúng H5P khi không đọc được dữ liệu từ iframe khác miền.
+  useEffect(() => {
+    const url = video?.videoUrl || '';
+    const isEmbed = /h5p\.com|youtube\.com|youtu\.be|vimeo\.com|\/embed/i.test(url)
+      && !(/\.(mp4|webm|ogg|mov|m3u8)(\?|$)|\/video\/upload\//i.test(url));
+    if (!isEmbed || !video?.id) return undefined;
+
+    // Ước lượng thời lượng mục tiêu từ video.duration ('1-2 phút', '2:30'...)
+    const parseTarget = (d) => {
+      if (!d) return 120;
+      const str = String(d);
+      if (str.includes(':')) {
+        const parts = str.split(':').map((x) => Number(x) || 0);
+        return (parts[0] * 60 + (parts[1] || 0)) || 120;
+      }
+      const nums = (str.match(/\d+/g) || []).map(Number);
+      const n = nums.length ? Math.max(...nums) : 2;
+      return /giây|sec/i.test(str) ? n : n * 60;
+    };
+    const target = parseTarget(video.duration);
+    // Tiếp tục từ % đã học trước đó (học sau vẫn cộng dồn, không bắt đầu lại từ 0)
+    let seconds = Math.max(0, Math.min(target, (Number(initialPercent) || 0) / 100 * target));
+    const timer = setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      seconds += 1;
+      const pct = Math.min(100, (seconds / target) * 100);
+      if (onProgressRef.current) onProgressRef.current(video.id, pct);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [video?.id, video?.videoUrl, video?.duration, initialPercent]);
 
   // Fetch comments for the specified video from backend on mount or video change
   const fetchComments = async () => {
@@ -354,7 +402,7 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
               </form>
             </div>
           ) : (
-            video.videoUrl && (video.videoUrl.startsWith('http') || video.videoUrl.includes('/embed')) ? (
+            video.videoUrl && (/h5p\.com|youtube\.com|youtu\.be|vimeo\.com|\/embed/i.test(video.videoUrl)) && !(/\.(mp4|webm|ogg|mov|m3u8)(\?|$)|\/video\/upload\//i.test(video.videoUrl)) ? (
               <iframe
                 src={video.videoUrl}
                 className="h5p-iframe"
@@ -371,6 +419,18 @@ function Classroom({ video, user, onBack, showToast, onComplete }) {
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                 controls
                 autoPlay
+                onTimeUpdate={(e) => {
+                  const v = e.currentTarget;
+                  if (v.duration > 0 && onProgressRef.current && video?.id) {
+                    onProgressRef.current(video.id, (v.currentTime / v.duration) * 100);
+                  }
+                }}
+                onEnded={() => {
+                  if (video?.id) {
+                    if (onProgressRef.current) onProgressRef.current(video.id, 100);
+                    if (onCompleteRef.current) onCompleteRef.current(video.id);
+                  }
+                }}
               />
             )
           )}

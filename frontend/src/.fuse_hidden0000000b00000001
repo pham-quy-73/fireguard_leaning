@@ -8,21 +8,10 @@ import { API_BASE_URL } from './config';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
-import ChangePasswordModal from './components/ChangePasswordModal';
-
-// Đồng bộ 4 bài học theo VỊ TRÍ thẻ (ảnh 1..4): tên + link H5P mới. Áp bất kể id/dữ liệu DB.
-const NEW_VIDEOS = [
-  { title: 'Cháy chung cư mini',  videoUrl: 'https://fireguard.h5p.com/content/1292933141119135919/embed' }, // ảnh 1
-  { title: 'Cháy bình nóng lạnh', videoUrl: 'https://fireguard.h5p.com/content/1292933146469393139/embed' }, // ảnh 2
-  { title: 'Cháy chung cư',       videoUrl: 'https://fireguard.h5p.com/content/1292933165577314319/embed' }, // ảnh 3
-  { title: 'Cháy ấm đun nước',    videoUrl: 'https://fireguard.h5p.com/content/1292933229411731469/embed' }, // ảnh 4
-];
-const applyVideoUrls = (list) => (Array.isArray(list) ? list.map((v, i) => (NEW_VIDEOS[i] ? { ...v, title: NEW_VIDEOS[i].title, videoUrl: NEW_VIDEOS[i].videoUrl } : v)) : list);
 
 function App() {
   const [view, setView] = useState('home'); // 'home' | 'login' | 'register' | 'videos_dashboard' | 'profile_dashboard'
   const [user, setUser] = useState(null);
-  const [pwModalOpen, setPwModalOpen] = useState(false);
 
   // Auth popup modal mode: null | 'login' | 'register'.
   // Mo dang popup de len trang chu, khoa nen, KHONG cho tat — buoc khach dang ky/dang nhap.
@@ -95,7 +84,7 @@ function App() {
     axios.get(`${API_BASE_URL}/api/videos`)
       .then((res) => {
         if (res.data?.success && Array.isArray(res.data.videos)) {
-          setVideos(applyVideoUrls(res.data.videos));
+          setVideos(res.data.videos);
           setVideoCount(res.data.videos.length);
         }
       })
@@ -115,20 +104,9 @@ function App() {
     const savedUser = localStorage.getItem('user') || sessionStorage.getItem('user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
-      // F5/tải lại: giữ nguyên trang đang xem (lưu trong localStorage), không ép về homepage
-      const savedView = localStorage.getItem('lastView');
-      if (savedView === 'videos_dashboard' || savedView === 'profile_dashboard') {
-        setView(savedView);
-      }
+      setView('videos_dashboard');
     }
   }, []);
-
-  // Lưu lại vị trí hiện tại để F5 không mất trang
-  useEffect(() => {
-    if (view === 'home' || view === 'videos_dashboard' || view === 'profile_dashboard') {
-      localStorage.setItem('lastView', view);
-    }
-  }, [view]);
 
   const handleLogout = () => {
     localStorage.removeItem('user');
@@ -183,14 +161,6 @@ function App() {
       )}
 
       {/* AUTH POPUP — de len trang chu, khoa nen, KHONG co nut tat. */}
-      {/* Popup Đổi mật khẩu (dùng chung navbar + Cài đặt) */}
-      <ChangePasswordModal
-        open={pwModalOpen}
-        onClose={() => setPwModalOpen(false)}
-        user={user}
-        showToast={showToast}
-      />
-
       {authModal && (
         <div className="auth-modal-overlay" role="dialog" aria-modal="true">
           <div className="auth-modal-card">
@@ -224,15 +194,13 @@ function App() {
           handleLogout={handleLogout}
           showToast={showToast}
           goHome={() => setView('home')}
-          initialView={view === 'profile_dashboard' ? 'settings' : 'discussion'}
-          onChangePassword={() => setPwModalOpen(true)}
           pendingVideoId={pendingVideoId}
           clearPendingVideo={() => setPendingVideoId(null)}
           darkMode={darkMode}
           toggleDarkMode={toggleDarkMode}
         />
       ) : view === 'home' ? (
-        <Homepage user={user} setView={openAuthFromHome} onLogout={handleLogout} onAccount={() => { localStorage.setItem('lastDashboardView', 'settings'); setView('profile_dashboard'); }} showToast={showToast} onChangePassword={() => setPwModalOpen(true)} onStartLearning={() => { if (user) { localStorage.setItem('lastDashboardView', 'discussion'); setView('videos_dashboard'); } else { setAuthModal('register'); } }} totalStudents={totalStudents} videoCount={videoCount} videos={videos} onStartCourse={startCourse} />
+        <Homepage user={user} setView={openAuthFromHome} totalStudents={totalStudents} videoCount={videoCount} videos={videos} onStartCourse={startCourse} />
       ) : (
         <div className="fullscreen-layout">
           <div className="auth-container">

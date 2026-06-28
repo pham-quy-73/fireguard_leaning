@@ -125,7 +125,9 @@ exports.loginUser = async (req, res) => {
         phone: user.phone || '',
         address: user.address || '',
         role: user.role || (user.email === 'admin@fireguard.com' ? 'admin' : 'student'),
-        watchedVideos: user.watchedVideos || []
+        watchedVideos: user.watchedVideos || [],
+        videoProgress: user.videoProgress ? Object.fromEntries(user.videoProgress) : {},
+        videoScores: user.videoScores ? Object.fromEntries(user.videoScores) : {}
       } 
     });
   } catch (error) {
@@ -153,7 +155,9 @@ exports.getUserProfile = async (req, res) => {
         phone: user.phone || '',
         address: user.address || '',
         role: user.role || (user.email === 'admin@fireguard.com' ? 'admin' : 'student'),
-        watchedVideos: user.watchedVideos || []
+        watchedVideos: user.watchedVideos || [],
+        videoProgress: user.videoProgress ? Object.fromEntries(user.videoProgress) : {},
+        videoScores: user.videoScores ? Object.fromEntries(user.videoScores) : {}
       }
     });
   } catch (error) {
@@ -174,11 +178,13 @@ exports.watchVideo = async (req, res) => {
     }
 
     // Add videoId to user's watched list (using Mongo $addToSet to avoid duplicates)
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { $addToSet: { watchedVideos: Number(videoId) } },
-      { new: true }
-    );
+    const user = await User.findById(userId);
+    if (user) {
+      if (!user.watchedVideos.includes(Number(videoId))) user.watchedVideos.push(Number(videoId));
+      if (!user.videoProgress) user.videoProgress = new Map();
+      user.videoProgress.set(String(videoId), 100);
+      await user.save();
+    }
 
     if (!user) {
       return res.status(404).json({ success: false, message: "Người dùng không có thực!" });
@@ -187,7 +193,8 @@ exports.watchVideo = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Tiến trình học tập đã được lưu!",
-      watchedVideos: user.watchedVideos || []
+      watchedVideos: user.watchedVideos || [],
+      videoProgress: user.videoProgress ? Object.fromEntries(user.videoProgress) : {}
     });
   } catch (error) {
     console.error("Lỗi ghi nhận xem video:", error);
@@ -511,5 +518,163 @@ exports.getAdminStats = async (req, res) => {
   } catch (error) {
     console.error("Lỗi trích xuất thống kê Admin:", error);
     res.status(500).json({ success: false, message: "Không thể nạp dữ liệu thống kê từ Máy chủ!" });
+  }
+};
+
+// @desc    Change user password (plaintext scheme to match existing auth)
+// @route   POST /api/auth/change-password
+// @access  Public
+exports.changePassword = async (req, res) => {
+  try {
+    const { userId, currentPassword, newPassword } = req.body;
+
+    if (!userId || !currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: "Vui lòng điền đầy đủ thông tin!" });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: "Mật khẩu mới phải dài tối thiểu 6 ký tự!" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy tài khoản!" });
+    }
+    if (user.password !== currentPassword) {
+      return res.status(400).json({ success: false, message: "Mật khẩu hiện tại không chính xác!" });
+    }
+    if (currentPassword === newPassword) {
+      return res.status(400).json({ success: false, message: "Mật khẩu mới phải khác mật khẩu hiện tại!" });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json({ success: true, message: "Đổi mật khẩu thành công!" });
+  } catch (error) {
+    console.error("Lỗi đổi mật khẩu:", error);
+    res.status(500).json({ success: false, message: "Có lỗi xảy ra từ máy chủ!" });
+  }
+};
+
+// @desc    Thêm trả lời vào 1 bài diễn đàn (lưu DB để F5 không mất)
+// @route   POST /api/auth/forum/:postId/reply
+exports.addForumReply = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const { userId, userName, avatarLetter, role, content } = req.body;
+    if (!content || !content.trim()) {
+      return res.status(400).json({ success: false, message: "Nội dung trả lời không được để trống!" });
+    }
+    if (!userName || !userName.trim()) {
+      return res.status(400).json({ success: false, message: "Thiếu thông tin người dùng!" });
+    }
+    const post = await ForumPost.findById(postId);
+    if (!post) return res.status(404).json({ success: false, message: "Không tìm thấy bình luận!" });
+    post.replies.push({
+      userId: userId || null,
+      userName: userName.trim(),
+      avatarLetter: (avatarLetter || userName.trim().charAt(0)).toUpperCase(),
+      role: role || 'Học viên',
+      content: content.trim(),
+    });
+    await post.save();
+    res.status(201).json({ success: true, message: "Đã trả lời!", post });
+  } catch (error) {
+    console.error("Lỗi trả lời diễn đàn:", error);
+    res.status(500).json({ success: false, message: "Không thể gửi trả lời!" });
+  }
+};
+
+// @desc    Thu hồi (xóa) 1 bài diễn đàn — chủ bài hoặc admin
+// @route   DELETE /api/auth/forum/:postId
+exports.deleteForumPost = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const { userId } = req.body;
+    const post = await ForumPost.findById(postId);
+    if (!post) return res.status(404).json({ success: false, message: "Không tìm thấy bình luận!" });
+    const requester = userId ? await User.findById(userId) : null;
+    const isAdmin = requester && (requester.role === 'admin' || requester.email === 'admin@fireguard.com');
+    const isOwner = post.userId && userId && String(post.userId) === String(userId);
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ success: false, message: "Bạn không thể thu hồi bình luận này!" });
+    }
+    await post.deleteOne();
+    res.status(200).json({ success: true, message: "Đã thu hồi bình luận!" });
+  } catch (error) {
+    console.error("Lỗi thu hồi bình luận:", error);
+    res.status(500).json({ success: false, message: "Không thể thu hồi bình luận!" });
+  }
+};
+
+// @desc    Thu hồi (xóa) 1 trả lời — chủ trả lời hoặc admin
+// @route   DELETE /api/auth/forum/:postId/reply/:replyId
+exports.deleteForumReply = async (req, res) => {
+  try {
+    const { postId, replyId } = req.params;
+    const { userId } = req.body;
+    const post = await ForumPost.findById(postId);
+    if (!post) return res.status(404).json({ success: false, message: "Không tìm thấy bình luận!" });
+    const reply = post.replies.id(replyId);
+    if (!reply) return res.status(404).json({ success: false, message: "Không tìm thấy trả lời!" });
+    const requester = userId ? await User.findById(userId) : null;
+    const isAdmin = requester && (requester.role === 'admin' || requester.email === 'admin@fireguard.com');
+    const isOwner = reply.userId && userId && String(reply.userId) === String(userId);
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ success: false, message: "Bạn không thể thu hồi trả lời này!" });
+    }
+    post.replies.pull(replyId);
+    await post.save();
+    res.status(200).json({ success: true, message: "Đã thu hồi trả lời!", post });
+  } catch (error) {
+    console.error("Lỗi thu hồi trả lời:", error);
+    res.status(500).json({ success: false, message: "Không thể thu hồi trả lời!" });
+  }
+};
+
+// @desc    Lưu tiến độ xem video (phần trăm thật) + tự đánh dấu hoàn thành khi >= 90%
+// @route   POST /api/auth/progress
+exports.saveVideoProgress = async (req, res) => {
+  try {
+    const { userId, videoId, percent, scoreRaw, scoreMax } = req.body;
+    if (!userId || videoId === undefined) {
+      return res.status(400).json({ success: false, message: "Thiếu dữ liệu Người dùng hoặc Video!" });
+    }
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ success: false, message: "Người dùng không tồn tại!" });
+    if (!user.videoProgress) user.videoProgress = new Map();
+    if (!user.videoScores) user.videoScores = new Map();
+    const key = String(videoId);
+    let best = user.videoProgress.get(key) || 0;
+
+    // Cập nhật % đã xem (nếu có gửi)
+    if (percent !== undefined && percent !== null && !Number.isNaN(Number(percent))) {
+      const pct = Math.max(0, Math.min(100, Math.round(Number(percent))));
+      best = Math.max(best, pct);
+      user.videoProgress.set(key, best);
+    }
+
+    // Cập nhật điểm đạt được (nếu có gửi, vd từ H5P)
+    if (scoreMax !== undefined && Number(scoreMax) > 0) {
+      user.videoScores.set(key, { raw: Number(scoreRaw) || 0, max: Number(scoreMax) });
+    }
+
+    // Hoàn thành THẬT chỉ khi đã xem đủ 100% (không đánh dấu giả)
+    let completed = false;
+    if (best >= 100 && !user.watchedVideos.includes(Number(videoId))) {
+      user.watchedVideos.push(Number(videoId));
+      completed = true;
+    }
+    await user.save();
+    res.status(200).json({
+      success: true,
+      completed,
+      watchedVideos: user.watchedVideos || [],
+      videoProgress: Object.fromEntries(user.videoProgress),
+      videoScores: Object.fromEntries(user.videoScores),
+    });
+  } catch (error) {
+    console.error("Lỗi lưu tiến độ video:", error);
+    res.status(500).json({ success: false, message: "Không thể lưu tiến độ học!" });
   }
 };

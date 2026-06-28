@@ -173,24 +173,37 @@ const COURSE_FRAMES = {
   amdunnuoc: 'https://res.cloudinary.com/dzasig10l/video/upload/so_15,w_640,h_360,c_fill,q_auto/v1782235450/files-6a353f5a413e0_cwbln4.jpg',
 };
 const FRAME_FALLBACK = [COURSE_FRAMES.chungcu, COURSE_FRAMES.trongnha, COURSE_FRAMES.mini, COURSE_FRAMES.amdunnuoc];
+// Ảnh cố định theo id bài học: 1=chung cư mini, 2=bình nóng lạnh, 3=chung cư, 4=ấm đun nước
+const FRAME_BY_ID = {
+  1: COURSE_FRAMES.chungcu,
+  2: COURSE_FRAMES.trongnha,
+  3: COURSE_FRAMES.mini,
+  4: COURSE_FRAMES.amdunnuoc,
+};
 function getCourseThumb(video, idx) {
-  const t = ((video && video.title) || '').toLowerCase();
-  if (t.includes('mini')) return COURSE_FRAMES.mini;
-  if (t.includes('trong nhà') || t.includes('trong nha')) return COURSE_FRAMES.trongnha;
-  if (t.includes('ấm') || t.includes('đun nước') || t.includes('dun nuoc') || t.includes('điện') || t.includes('dien') ||
-      t.includes('sơ cứu') || t.includes('so cuu') || t.includes('bỏng') || t.includes('bong') ||
-      t.includes('ngạt khói') || t.includes('ngat khoi')) return COURSE_FRAMES.amdunnuoc;
-  if (t.includes('chung cư') || t.includes('chung cu') || t.includes('cao tầng') || t.includes('cao tang')) return COURSE_FRAMES.chungcu;
+  // Ảnh theo đúng vị trí thẻ (ảnh 1..4)
   return FRAME_FALLBACK[idx % FRAME_FALLBACK.length];
 }
 
-function Homepage({ setView, totalStudents = null, videoCount = null, videos = [], onStartCourse }) {
+function Homepage({ user = null, setView, onLogout, onAccount, onChangePassword, onStartLearning, showToast, totalStudents = null, videoCount = null, videos = [], onStartCourse }) {
   const startCourse = onStartCourse || (() => setView('register'));
   const [scrolled, setScrolled] = useState(false);
   const [animatedStats, setAnimatedStats] = useState(false);
   const [showTop, setShowTop] = useState(false);
   const [openFaq, setOpenFaq] = useState(0);
   const rootRef = useRef(null);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef(null);
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const onDocClick = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) setUserMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [userMenuOpen]);
+  const displayName = user ? (user.fullName || user.name || user.email || 'Học viên') : '';
+  const handleMenu = (fn) => { setUserMenuOpen(false); if (fn) fn(); };
 
   // Đồng bộ phần 'Lộ trình' với khóa học thật trong DB; fallback dữ liệu mẫu khi API lỗi
   const displayCourses = (videos && videos.length) ? videos.slice(0, 3) : featuredCourses;
@@ -273,12 +286,60 @@ function Homepage({ setView, totalStudents = null, videoCount = null, videos = [
 
           {/* Auth CTA buttons */}
           <div className="hp-nav-actions">
-            <button className="hp-btn hp-btn-ghost" onClick={() => setView('login')}>
-              Đăng nhập
-            </button>
-            <button className="hp-btn hp-btn-primary" onClick={() => setView('register')}>
-              Đăng ký ngay
-            </button>
+            {user ? (
+              <div className="hp-nav-user-menu" ref={userMenuRef}>
+                <button
+                  type="button"
+                  className={`hp-nav-user-trigger${userMenuOpen ? ' open' : ''}`}
+                  onClick={() => setUserMenuOpen((o) => !o)}
+                  aria-haspopup="true"
+                  aria-expanded={userMenuOpen}
+                >
+                  <span className="hp-nav-avatar">{displayName.charAt(0).toUpperCase()}</span>
+                  <span className="hp-nav-username">{displayName}</span>
+                  <span className="hp-nav-caret" aria-hidden="true">▾</span>
+                </button>
+
+                {userMenuOpen && (
+                  <div className="hp-nav-dropdown" role="menu">
+                    <div className="hp-nav-dd-header">
+                      <span className="hp-nav-dd-avatar">{displayName.charAt(0).toUpperCase()}</span>
+                      <div className="hp-nav-dd-id">
+                        <span className="hp-nav-dd-name">{displayName}</span>
+                        {user.email && <span className="hp-nav-dd-email">{user.email}</span>}
+                      </div>
+                    </div>
+
+                    <div className="hp-nav-dd-divider" />
+                    <span className="hp-nav-dd-label">Tài khoản</span>
+
+                    <button className="hp-nav-dd-item" role="menuitem"
+                      onClick={() => handleMenu(onAccount)}>
+                      <span className="hp-nav-dd-ic">👤</span> Hồ sơ
+                    </button>
+                    <button className="hp-nav-dd-item" role="menuitem"
+                      onClick={() => handleMenu(onChangePassword)}>
+                      <span className="hp-nav-dd-ic">🔑</span> Đổi mật khẩu
+                    </button>
+
+                    <div className="hp-nav-dd-divider" />
+                    <button className="hp-nav-dd-item logout" role="menuitem"
+                      onClick={() => handleMenu(onLogout)}>
+                      <span className="hp-nav-dd-ic">⎋</span> Đăng xuất
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <button className="hp-btn hp-btn-ghost" onClick={() => setView('login')}>
+                  Đăng nhập
+                </button>
+                <button className="hp-btn hp-btn-primary" onClick={() => setView('register')}>
+                  Đăng ký ngay
+                </button>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -319,7 +380,7 @@ function Homepage({ setView, totalStudents = null, videoCount = null, videos = [
             </p>
 
             <div className="hp-hero-cta-row">
-              <button className="hp-btn hp-btn-primary hp-btn-lg hp-btn-flame" onClick={() => setView('register')}>
+              <button className="hp-btn hp-btn-primary hp-btn-lg hp-btn-flame" onClick={() => onStartLearning && onStartLearning()}>
                 Bắt đầu học miễn phí
                 <span className="hp-btn-arrow">→</span>
               </button>
@@ -364,7 +425,7 @@ function Homepage({ setView, totalStudents = null, videoCount = null, videos = [
                 <button
                   type="button"
                   className="hp-hero-card-play"
-                  onClick={() => setView('register')}
+                  onClick={() => onStartLearning && onStartLearning()}
                   aria-label="Bắt đầu học"
                 >
                   <span>▶</span>

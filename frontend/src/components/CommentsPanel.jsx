@@ -100,8 +100,9 @@ const formatRelativeTime = (dateStr) => {
 };
 
 // Map a raw DB post into the shape the UI cards expect
-const mapPost = (p) => ({
+const mapPost = (p, myId) => ({
   id: p._id,
+  userId: p.userId ? String(p.userId) : null,
   name: p.userName,
   avatar: (p.avatarLetter || p.userName?.charAt(0) || 'A').toUpperCase(),
   role: p.role || 'Học viên',
@@ -109,7 +110,16 @@ const mapPost = (p) => ({
   time: formatRelativeTime(p.createdAt),
   verified: p.verified,
   content: p.content,
-  replies: [],
+  isMe: !!(myId && p.userId && String(p.userId) === String(myId)),
+  replies: (p.replies || []).map((r) => ({
+    id: r._id,
+    name: r.userName,
+    avatar: (r.avatarLetter || r.userName?.charAt(0) || 'A').toUpperCase(),
+    role: r.role || 'Học viên',
+    content: r.content,
+    time: formatRelativeTime(r.createdAt),
+    isMe: !!(myId && r.userId && String(r.userId) === String(myId)),
+  })),
 });
 
 // Emergency hotlines shown in the floating box (name + number only, no logos)
@@ -169,7 +179,7 @@ export default function Forum({ user, showToast }) {
         const res = await axios.get(`${API_BASE_URL}/api/auth/forum`);
         if (cancelled) return;
         if (res.data?.success && res.data.posts.length > 0) {
-          setComments(res.data.posts.map(mapPost));
+          setComments(res.data.posts.map((p) => mapPost(p, user?.id || user?._id)));
         } else {
           setComments(INITIAL_COMMENTS);
         }
@@ -179,7 +189,7 @@ export default function Forum({ user, showToast }) {
     };
     loadPosts();
     return () => { cancelled = true; };
-  }, []);
+  }, [user]);
 
   // Pull live student count from MongoDB; refresh every 60s so the bar reflects new sign-ups
   useEffect(() => {
@@ -219,6 +229,8 @@ export default function Forum({ user, showToast }) {
   const myName = user?.fullName || 'Bạn';
   const myInitial = myName.charAt(0).toUpperCase();
   const myRole = user?.role === 'admin' ? 'Quản trị viên' : 'Học viên';
+  const myId = user?.id || user?._id;
+  const isAdmin = user?.role === 'admin';
 
   const handlePost = async (e) => {
     e.preventDefault();
@@ -237,7 +249,7 @@ export default function Forum({ user, showToast }) {
       });
 
       if (res.data?.success) {
-        const saved = { ...mapPost(res.data.post), isMe: true, isNew: true };
+        const saved = { ...mapPost(res.data.post, user?.id || user?._id), isMe: true, isNew: true };
         setComments((prev) => [saved, ...prev.map((c) => ({ ...c, isNew: false }))]);
         setDraft('');
         if (listRef.current) listRef.current.scrollTo({ top: 0, behavior: 'smooth' });
@@ -257,48 +269,54 @@ export default function Forum({ user, showToast }) {
     setReplyDraft('');
   };
 
-  // Add a reply to a comment, shown instantly without reloading
-  const handleReplySubmit = (commentId) => {
+  // Gửi trả lời -> lưu DB để F5 không mất
+  const handleReplySubmit = async (commentId) => {
     const text = replyDraft.trim();
     if (!text) return;
-
-    const reply = {
-      id: `r-${Date.now()}`,
-      name: myName,
-      avatar: myInitial,
-      role: myRole,
-      content: text,
-      time: 'Vừa xong',
-      isMe: true,
-    };
-
-    setComments((prev) =>
-      prev.map((c) =>
-        c.id === commentId
-          ? { ...c, replies: [...(c.replies || []), reply] }
-          : c
-      )
-    );
-    setReplyDraft('');
-    setReplyingTo(null);
+    try {
+      const res = await axios.post(`${API_BASE_URL}/api/auth/forum/${commentId}/reply`, {
+        userId: myId || null,
+        userName: myName,
+        avatarLetter: myInitial,
+        role: myRole,
+        content: text,
+      });
+      if (res.data?.success) {
+        const updated = mapPost(res.data.post, myId);
+        setComments((prev) => prev.map((c) => (c.id === commentId ? { ...updated, isNew: c.isNew } : c)));
+        setReplyDraft('');
+        setReplyingTo(null);
+      }
+    } catch (err) {
+      if (showToast) showToast(err.response?.data?.message || 'Không thể gửi trả lời!', 'error');
+    }
   };
 
-  // Delete one of my own comments (removed instantly from the list)
-  const handleDeleteComment = (commentId) => {
-    setComments((prev) => prev.filter((c) => c.id !== commentId));
-    if (showToast) showToast('Đã xóa bình luận!', 'success');
+  // Thu hồi bình luận của mình (hoặc admin) -> xóa ở DB
+  const handleDeleteComment = async (commentId) => {
+    try {
+      const res = await axios.delete(`${API_BASE_URL}/api/auth/forum/${commentId}`, { data: { userId: myId } });
+      if (res.data?.success) {
+        setComments((prev) => prev.filter((c) => c.id !== commentId));
+        if (showToast) showToast(res.data.message || 'Đã thu hồi bình luận!', 'success');
+      }
+    } catch (err) {
+      if (showToast) showToast(err.response?.data?.message || 'Không thể thu hồi bình luận!', 'error');
+    }
   };
 
-  // Delete one of my own replies under a comment
-  const handleDeleteReply = (commentId, replyId) => {
-    setComments((prev) =>
-      prev.map((c) =>
-        c.id === commentId
-          ? { ...c, replies: (c.replies || []).filter((r) => r.id !== replyId) }
-          : c
-      )
-    );
-    if (showToast) showToast('Đã xóa trả lời!', 'success');
+  // Thu hồi trả lời của mình (hoặc admin) -> xóa ở DB
+  const handleDeleteReply = async (commentId, replyId) => {
+    try {
+      const res = await axios.delete(`${API_BASE_URL}/api/auth/forum/${commentId}/reply/${replyId}`, { data: { userId: myId } });
+      if (res.data?.success) {
+        const updated = mapPost(res.data.post, myId);
+        setComments((prev) => prev.map((c) => (c.id === commentId ? { ...updated, isNew: c.isNew } : c)));
+        if (showToast) showToast(res.data.message || 'Đã thu hồi trả lời!', 'success');
+      }
+    } catch (err) {
+      if (showToast) showToast(err.response?.data?.message || 'Không thể thu hồi trả lời!', 'error');
+    }
   };
 
   return (
@@ -389,14 +407,14 @@ export default function Forum({ user, showToast }) {
                         <span className="forum-reply-name">{r.name}</span>
                         {r.isMe && <span className="forum-me-badge">Bạn</span>}
                         <span className="forum-reply-time">· {r.time}</span>
-                        {r.isMe && (
+                        {(r.isMe || isAdmin) && (
                           <button
                             type="button"
                             className="forum-delete-btn"
-                            title="Xóa trả lời"
+                            title="Thu hồi trả lời"
                             onClick={() => handleDeleteReply(c.id, r.id)}
                           >
-                            🗑 Xóa
+                            ↩ Thu hồi
                           </button>
                         )}
                       </div>
@@ -415,14 +433,14 @@ export default function Forum({ user, showToast }) {
               >
                 {replyingTo === c.id ? 'Hủy' : '↩ Trả lời'}
               </button>
-              {c.isMe && (
+              {(c.isMe || isAdmin) && (
                 <button
                   type="button"
                   className="forum-delete-btn"
-                  title="Xóa bình luận"
+                  title="Thu hồi bình luận"
                   onClick={() => handleDeleteComment(c.id)}
                 >
-                  🗑 Xóa
+                  ↩ Thu hồi
                 </button>
               )}
             </div>

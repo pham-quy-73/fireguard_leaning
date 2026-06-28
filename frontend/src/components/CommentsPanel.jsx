@@ -327,7 +327,7 @@ export default function Forum({ user, showToast }) {
           <h1 className="forum-title">Diễn đàn FIREGUARD</h1>
         </div>
         <p className="forum-subtitle">
-          Nơi học viên chia sẻ kinh nghiệm, đánh giá và đặt câu hỏi về PCCC.
+          Nơi học viên chia sẻ kinh nghiệm và đặt câu hỏi về PCCC.
           Đang có{' '}
           <strong className="forum-subtitle-strong">
             {formatCount(totalStudents)}
@@ -335,18 +335,6 @@ export default function Forum({ user, showToast }) {
           học viên cùng tham gia.
         </p>
         <div className="forum-stats-bar">
-          <div className="forum-stat">
-            <span className="forum-stat-value">
-              {avgRating ? avgRating.toFixed(1) : '0.0'} ★
-            </span>
-            <span className="forum-stat-label">Điểm trung bình</span>
-          </div>
-          <div className="forum-stat-divider"></div>
-          <div className="forum-stat">
-            <span className="forum-stat-value">{formatCount(reviewCount)}</span>
-            <span className="forum-stat-label">Đánh giá</span>
-          </div>
-          <div className="forum-stat-divider"></div>
           <div className="forum-stat">
             <span className="forum-stat-value">
               {formatCount(totalStudents)}
@@ -360,7 +348,7 @@ export default function Forum({ user, showToast }) {
         <div className="forum-compose-avatar">{myInitial}</div>
         <textarea
           className="forum-compose-input"
-          placeholder="Chia sẻ trải nghiệm, đánh giá hoặc đặt câu hỏi về PCCC..."
+          placeholder="Chia sẻ trải nghiệm hoặc đặt câu hỏi về PCCC..."
           rows={2}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -393,7 +381,6 @@ export default function Forum({ user, showToast }) {
                   {c.role} · {c.time}
                 </span>
               </div>
-              <div className="forum-stars-row">{renderStars(c.rating)}</div>
             </div>
             <p className="forum-text">{c.content}</p>
 

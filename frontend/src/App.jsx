@@ -133,6 +133,7 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem('user');
     sessionStorage.removeItem('user');
+    localStorage.removeItem('lastDashboardView');
     setUser(null);
     setView('home');
     showToast('Đã đăng xuất thành công!', 'success');

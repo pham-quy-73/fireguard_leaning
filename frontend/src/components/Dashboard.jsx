@@ -35,7 +35,7 @@ const FALLBACK_VIDEOS = [
     title: "Mô phỏng tình huống cháy chung cư mini và kỹ năng thoát nạn an toàn.",
     category: "Cơ bản",
     categoryKey: "co-ban",
-    defaultPercentage: 45,
+    defaultPercentage: 0,
     isNew: true,
     thumbnail: "Chaychungcu_Thumbnail.png",
    
@@ -70,7 +70,7 @@ Mục đích của bài học là nâng cao nhận thức và kỹ năng thoát 
     categoryKey: "thoat-hiem",
     duration: "",
     views: "2.4k lượt xem • 1 tuần trước",
-    defaultPercentage: 85,
+    defaultPercentage: 0,
     isNew: false,
 
 
@@ -186,6 +186,15 @@ function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clea
   const [dashboardView, setDashboardView] = useState(() => localStorage.getItem('lastDashboardView') || initialView);
   // Lưu tab hiện tại để F5 không mất trang
   useEffect(() => { localStorage.setItem('lastDashboardView', dashboardView); }, [dashboardView]); // 'announcements' | 'discussion' | 'videos' | 'quiz' | 'profile' | 'admin' | 'settings'
+
+  // Safeguard: Redirect student if they are in admin view
+  useEffect(() => {
+    const isUserAdmin = user?.role === 'admin' || user?.email === 'admin@fireguard.com' || dbUser?.role === 'admin';
+    if (dashboardView === 'admin' && !isUserAdmin) {
+      setDashboardView('discussion');
+    }
+  }, [user, dbUser, dashboardView]);
+
   // Sidebar expandable groups
   const [forumGroupOpen, setForumGroupOpen] = useState(true);
   const [learnGroupOpen, setLearnGroupOpen] = useState(true);

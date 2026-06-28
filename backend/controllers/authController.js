@@ -3,20 +3,25 @@ const Comment = require('../models/Comment');
 const Notification = require('../models/Notification');
 const ForumPost = require('../models/ForumPost');
 const Announcement = require('../models/Announcement');
+const Video = require('../models/Video');
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
 // @access  Public
 exports.registerUser = async (req, res) => {
   try {
-    const { email, password, fullName, phone, address } = req.body;
-    
+    const { email, username, password, fullName, phone, address } = req.body;
+
     // 1. Mandatory base empty validation
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: "Vui lòng điền đầy đủ Email và Mật khẩu!" });
+    if (!username || !username.trim()) {
+      return res.status(400).json({ success: false, message: "Vui lòng nhập Tên đăng nhập (Username)!" });
+    }
+    if (!password) {
+      return res.status(400).json({ success: false, message: "Vui lòng nhập Mật khẩu!" });
     }
 
-    const emailTrim = email.trim();
+    const usernameTrim = username.trim().toLowerCase();
+    const emailTrim = email ? email.trim() : '';
     const fullNameTrim = (fullName || '').trim();
     const phoneTrim = (phone || '').trim();
     const addressTrim = (address || '').trim();
@@ -46,10 +51,12 @@ exports.registerUser = async (req, res) => {
       return res.status(400).json({ success: false, message: "Địa chỉ liên hệ phải từ 5 ký tự trở lên!" });
     }
 
-    // 5. Email format check
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(emailTrim)) {
-      return res.status(400).json({ success: false, message: "Email không đúng cấu trúc hợp lệ!" });
+    // 5. Email format check (only if email is provided)
+    if (emailTrim) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailTrim)) {
+        return res.status(400).json({ success: false, message: "Email không đúng cấu trúc hợp lệ!" });
+      }
     }
 
     // 6. Password complexity check
@@ -57,37 +64,50 @@ exports.registerUser = async (req, res) => {
       return res.status(400).json({ success: false, message: "Mật khẩu phải dài tối thiểu từ 6 ký tự!" });
     }
 
-    const existingUser = await User.findOne({ email: emailTrim });
+    // Check if username or email already exists
+    const queryConditions = [{ username: usernameTrim }];
+    if (emailTrim) {
+      queryConditions.push({ email: emailTrim });
+    }
+    const existingUser = await User.findOne({  $or: queryConditions });
+
     if (existingUser) {
-      return res.status(400).json({ success: false, message: "Email này đã được đăng ký!" });
+      if (existingUser.username === usernameTrim) {
+        return res.status(400).json({ success: false, message: "Tên đăng nhập này đã tồn tại!" });
+      }
+      if (emailTrim && existingUser.email === emailTrim) {
+        return res.status(400).json({ success: false, message: "Email này đã được đăng ký!" });
+      }
     }
 
-    // Allocate admin role automatically if registered with specific admin email
-    const assignedRole = emailTrim === 'admin@fireguard.com' ? 'admin' : 'student';
+    // Allocate admin role automatically if registered with specific admin email/username
+    const assignedRole = (emailTrim === 'admin@fireguard.com' || usernameTrim === 'admin') ? 'admin' : 'student';
 
-    const newUser = new User({ 
-      email: emailTrim, 
-      password, 
-      fullName: fullNameTrim, 
-      phone: phoneTrim, 
+    const newUser = new User({
+      username: usernameTrim,
+      email: emailTrim || undefined, // store as undefined if not provided so sparse unique works
+      password,
+      fullName: fullNameTrim,
+      phone: phoneTrim,
       address: addressTrim,
       role: assignedRole,
       watchedVideos: []
     });
     await newUser.save();
-    
-    res.status(201).json({ 
-      success: true, 
-      message: "Đăng ký tài khoản thành công!", 
-      user: { 
-        id: newUser._id, 
-        email: newUser.email,
+
+    res.status(201).json({
+      success: true,
+      message: "Đăng ký tài khoản thành công!",
+      user: {
+        id: newUser._id,
+        username: newUser.username,
+        email: newUser.email || '',
         fullName: newUser.fullName,
         phone: newUser.phone,
         address: newUser.address,
         role: newUser.role,
         watchedVideos: []
-      } 
+      }
     });
   } catch (error) {
     console.error("Lỗi đăng ký:", error);
@@ -100,27 +120,35 @@ exports.registerUser = async (req, res) => {
 // @access  Public
 exports.loginUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
-    
+    const { email, password } = req.body; // email could be username or email
+
     if (!email || !password) {
-      return res.status(400).json({ success: false, message: "Vui lòng nhập Email và Mật khẩu!" });
+      return res.status(400).json({ success: false, message: "Vui lòng nhập Tên đăng nhập/Email và Mật khẩu!" });
     }
 
-    const user = await User.findOne({ email });
+    const emailTrim = email.trim();
+    const user = await User.findOne({
+      $or: [
+        { email: emailTrim },
+        { username: emailTrim.toLowerCase() }
+      ]
+    });
+
     if (!user) {
-      return res.status(400).json({ success: false, message: "Email không tồn tại!" });
+      return res.status(400).json({ success: false, message: "Tài khoản không tồn tại!" });
     }
 
     if (user.password !== password) {
       return res.status(400).json({ success: false, message: "Mật khẩu không chính xác!" });
     }
 
-    res.status(200).json({ 
-      success: true, 
-      message: "Đăng nhập thành công!", 
-      user: { 
-        id: user._id, 
-        email: user.email,
+    res.status(200).json({
+      success: true,
+      message: "Đăng nhập thành công!",
+      user: {
+        id: user._id,
+        username: user.username || '',
+        email: user.email || '',
         fullName: user.fullName || '',
         phone: user.phone || '',
         address: user.address || '',
@@ -128,7 +156,7 @@ exports.loginUser = async (req, res) => {
         watchedVideos: user.watchedVideos || [],
         videoProgress: user.videoProgress ? Object.fromEntries(user.videoProgress) : {},
         videoScores: user.videoScores ? Object.fromEntries(user.videoScores) : {}
-      } 
+      }
     });
   } catch (error) {
     console.error("Lỗi đăng nhập:", error);
@@ -145,12 +173,13 @@ exports.getUserProfile = async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, message: "Người dùng không tồn tại!" });
     }
-    
+
     res.status(200).json({
       success: true,
       user: {
         id: user._id,
-        email: user.email,
+        username: user.username || '',
+        email: user.email || '',
         fullName: user.fullName || '',
         phone: user.phone || '',
         address: user.address || '',
@@ -172,7 +201,7 @@ exports.getUserProfile = async (req, res) => {
 exports.watchVideo = async (req, res) => {
   try {
     const { userId, videoId } = req.body;
-    
+
     if (!userId || videoId === undefined) {
       return res.status(400).json({ success: false, message: "Thiếu dữ liệu Người dùng hoặc Video ID!" });
     }
@@ -438,15 +467,18 @@ exports.createAnnouncement = async (req, res) => {
 exports.getAdminStats = async (req, res) => {
   try {
     // 1. Fetch live student count
-    const allUsers = await User.find({}).sort({ createdAt: -1 });
+    const allUsers = await User.find({ role: 'student' }).sort({ createdAt: -1 });
     const students = allUsers.filter(u => u.email !== 'admin@fireguard.com' && u.role !== 'admin');
-    
+
     // 2. Fetch comments statistics
     let totalComments = await Comment.countDocuments({});
 
-    // 3. Map aggregates per video lessons (1 to 6)
+    // 3. Map aggregates per video lessons dynamically
+    const videos = await Video.find({}).sort({ id: 1 });
     const videoStats = [];
-    for (let vidId = 1; vidId <= 6; vidId++) {
+
+    for (const video of videos) {
+      const vidId = video.id;
       const watchedCount = allUsers.filter(u => u.watchedVideos && u.watchedVideos.includes(vidId)).length;
       let comments = await Comment.find({ videoId: vidId });
 
@@ -461,8 +493,8 @@ exports.getAdminStats = async (req, res) => {
             content: vidId === 1
               ? "Các câu hỏi tương tác hiện lên đúng lúc mình đang lơ là, giúp tập trung trở lại rất tốt. Cảm ơn giảng viên!"
               : vidId === 2
-              ? "Phần giải thích về cơ chế hoạt động của thang thoát hiểm rất chi tiết. Mình đã tự tin hơn nếu lỡ gặp sự cố thật."
-              : "Nhận biết sớm cháy điện, tránh sai lầm hắt nước gây giật... Bài giảng thực sự rất hữu ích và trực quan!",
+                ? "Phần giải thích về cơ chế hoạt động của thang thoát hiểm rất chi tiết. Mình đã tự tin hơn nếu lỡ gặp sự cố thật."
+                : "Nhận biết sớm cháy điện, tránh sai lầm hắt nước gây giật... Bài giảng thực sự rất hữu ích và trực quan!",
             likes: vidId === 1 ? 12 : vidId === 2 ? 8 : 15,
             createdAt: new Date(Date.now() - vidId * 2 * 60 * 60 * 1000)
           },
@@ -474,8 +506,8 @@ exports.getAdminStats = async (req, res) => {
             content: vidId === 1
               ? "Video bài giảng rất bổ ích, hình ảnh trực quan sinh động."
               : vidId === 2
-              ? "Mình đã học được rất nhiều điều từ video này, cảm ơn đội ngũ sản xuất!"
-              : "Kỹ năng thực tế cao, ai cũng nên xem bài học này ít nhất một lần.",
+                ? "Mình đã học được rất nhiều điều từ video này, cảm ơn đội ngũ sản xuất!"
+                : "Kỹ năng thực tế cao, ai cũng nên xem bài học này ít nhất một lần.",
             likes: vidId === 1 ? 8 : vidId === 2 ? 5 : 9,
             createdAt: new Date(Date.now() - (vidId * 2 + 3) * 60 * 60 * 1000)
           }
@@ -490,6 +522,7 @@ exports.getAdminStats = async (req, res) => {
 
       videoStats.push({
         videoId: vidId,
+        title: video.title,
         watchedCount,
         commentsCount: comments.length,
         avgRating: avg
@@ -503,6 +536,7 @@ exports.getAdminStats = async (req, res) => {
       success: true,
       totalStudents: students.length,
       totalComments,
+      totalVideos: videos.length,
       videoStats,
       studentList: allUsers.map(u => ({
         id: u._id,

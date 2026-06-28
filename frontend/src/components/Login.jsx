@@ -13,7 +13,7 @@ function Login({ setView, setUser, showToast }) {
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     if (!email || !password) {
-      showToast('Vui lòng nhập Email và Mật khẩu!', 'error');
+      showToast('Vui lòng nhập Tên đăng nhập hoặc Email và Mật khẩu!', 'error');
       return;
     }
     
@@ -51,13 +51,13 @@ function Login({ setView, setUser, showToast }) {
 
       <form className="auth-form" onSubmit={handleLoginSubmit}>
         <div className="form-group">
-          <span className="form-label">Email</span>
+          <span className="form-label">Tên đăng nhập hoặc Email</span>
           <div className="input-wrapper">
             <span className="input-icon-left"><MailIcon /></span>
             <input 
-              type="email" 
+              type="text" 
               className="form-input" 
-              placeholder="example@gmail.com"
+              placeholder="Username hoặc email..."
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required

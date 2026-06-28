@@ -4,6 +4,7 @@ import { MailIcon, LockIcon, EyeIcon, UserSilhouetteIcon, PhoneIcon, MapMarkerIc
 import { API_BASE_URL } from '../config';
 
 function Register({ setView, showToast }) {
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -11,68 +12,70 @@ function Register({ setView, showToast }) {
   const [address, setAddress] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
+    const newErrors = {};
 
-    // 1. Basic empty validation
-    if (!email.trim() || !password) {
-      showToast('Vui lòng nhập đầy đủ Email và Mật khẩu!', 'error');
-      return;
+    // 1. Basic empty validation for Username
+    const usernameTrim = username.trim();
+    if (!usernameTrim) {
+      newErrors.username = 'Vui lòng nhập Tên đăng nhập!';
     }
 
-    // 2. Full Name validation (At least 2 characters, no whitespaces only)
+    // 2. Full Name validation
     const nameTrim = fullName.trim();
     if (!nameTrim) {
-      showToast('Vui lòng nhập Họ và tên!', 'error');
-      return;
-    }
-    if (nameTrim.length < 2) {
-      showToast('Họ và tên phải dài ít nhất 2 ký tự!', 'error');
-      return;
+      newErrors.fullName = 'Vui lòng nhập Họ và tên!';
+    } else if (nameTrim.length < 2) {
+      newErrors.fullName = 'Họ và tên phải dài ít nhất 2 ký tự!';
     }
 
-    // 3. Phone Number validation (Vietnamese phone regex filter)
+    // 3. Phone Number validation
     const phoneTrim = phone.trim();
     const phoneRegex = /^(0|\+84)[3|5|7|8|9][0-9]{8}$/;
     if (!phoneTrim) {
-      showToast('Vui lòng nhập Số điện thoại liên hệ!', 'error');
-      return;
-    }
-    if (!phoneRegex.test(phoneTrim)) {
-      showToast('Số điện thoại không hợp lệ! Vui lòng nhập số Việt Nam (Ví dụ: 0912345678)', 'error');
-      return;
+      newErrors.phone = 'Vui lòng nhập Số điện thoại!';
+    } else if (!phoneRegex.test(phoneTrim)) {
+      newErrors.phone = 'Số điện thoại không hợp lệ! Vui lòng nhập số Việt Nam (Ví dụ: 0912345678).';
     }
 
     // 4. Address validation
     const addressTrim = address.trim();
     if (!addressTrim) {
-      showToast('Vui lòng cung cấp Địa chỉ cư trú!', 'error');
-      return;
-    }
-    if (addressTrim.length < 5) {
-      showToast('Vui lòng điền địa chỉ rõ ràng hơn (ít nhất 5 ký tự)!', 'error');
-      return;
+      newErrors.address = 'Vui lòng nhập Địa chỉ!';
+    } else if (addressTrim.length < 5) {
+      newErrors.address = 'Địa chỉ liên hệ phải từ 5 ký tự trở lên!';
     }
 
-    // 5. Email format validation
+    // 5. Email format validation (only if provided)
     const emailTrim = email.trim();
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(emailTrim)) {
-      showToast('Định dạng Email không chính xác! (Ví dụ: abc@gmail.com)', 'error');
+    if (emailTrim) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailTrim)) {
+        newErrors.email = 'Định dạng Email không chính xác! (Ví dụ: name@gmail.com)';
+      }
+    }
+
+    // 6. Password complexity validation
+    if (!password) {
+      newErrors.password = 'Vui lòng nhập Mật khẩu!';
+    } else if (password.length < 6) {
+      newErrors.password = 'Mật khẩu đăng ký phải từ 6 ký tự trở lên!';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
-    // 6. Password complexity length validation
-    if (password.length < 6) {
-      showToast('Mật khẩu đăng ký phải đạt tối thiểu từ 6 ký tự trở lên!', 'error');
-      return;
-    }
-
+    setErrors({});
     setLoading(true);
     try {
       const response = await axios.post(`${API_BASE_URL}/api/auth/register`, { 
-        email: emailTrim, 
+        username: usernameTrim,
+        email: emailTrim || undefined, 
         password,
         fullName: nameTrim,
         phone: phoneTrim,
@@ -87,7 +90,13 @@ function Register({ setView, showToast }) {
       }
     } catch (err) {
       const msg = err.response?.data?.message || 'Có lỗi xảy ra trong quá trình đăng ký!';
-      showToast(msg, 'error');
+      if (msg.includes('Tên đăng nhập')) {
+        setErrors({ username: msg });
+      } else if (msg.includes('Email')) {
+        setErrors({ email: msg });
+      } else {
+        showToast(msg, 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -108,10 +117,15 @@ function Register({ setView, showToast }) {
               className="form-input" 
               placeholder="Nguyễn Văn A"
               value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
+              onChange={(e) => {
+                setFullName(e.target.value);
+                if (errors.fullName) setErrors(prev => ({ ...prev, fullName: null }));
+              }}
+              style={errors.fullName ? { border: '1px solid #c2182c', backgroundColor: '#fff5f5' } : {}}
               disabled={loading}
             />
           </div>
+          {errors.fullName && <span style={{ color: '#c2182c', fontSize: '0.78rem', marginTop: '2px', fontWeight: '500' }}>{errors.fullName}</span>}
         </div>
 
         <div className="form-group">
@@ -123,10 +137,15 @@ function Register({ setView, showToast }) {
               className="form-input" 
               placeholder="0912345678"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                setPhone(e.target.value);
+                if (errors.phone) setErrors(prev => ({ ...prev, phone: null }));
+              }}
+              style={errors.phone ? { border: '1px solid #c2182c', backgroundColor: '#fff5f5' } : {}}
               disabled={loading}
             />
           </div>
+          {errors.phone && <span style={{ color: '#c2182c', fontSize: '0.78rem', marginTop: '2px', fontWeight: '500' }}>{errors.phone}</span>}
         </div>
 
         <div className="form-group">
@@ -138,14 +157,40 @@ function Register({ setView, showToast }) {
               className="form-input" 
               placeholder="123 Đường ABC, Hà Nội"
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
+              onChange={(e) => {
+                setAddress(e.target.value);
+                if (errors.address) setErrors(prev => ({ ...prev, address: null }));
+              }}
+              style={errors.address ? { border: '1px solid #c2182c', backgroundColor: '#fff5f5' } : {}}
               disabled={loading}
             />
           </div>
+          {errors.address && <span style={{ color: '#c2182c', fontSize: '0.78rem', marginTop: '2px', fontWeight: '500' }}>{errors.address}</span>}
         </div>
 
         <div className="form-group">
-          <span className="form-label">Email tài khoản *</span>
+          <span className="form-label">Tên đăng nhập *</span>
+          <div className="input-wrapper">
+            <span className="input-icon-left"><UserSilhouetteIcon /></span>
+            <input 
+              type="text" 
+              className="form-input" 
+              placeholder="Nhập tên đăng nhập (ví dụ: nguyenvanan)"
+              value={username}
+              onChange={(e) => {
+                setUsername(e.target.value);
+                if (errors.username) setErrors(prev => ({ ...prev, username: null }));
+              }}
+              style={errors.username ? { border: '1px solid #c2182c', backgroundColor: '#fff5f5' } : {}}
+              required
+              disabled={loading}
+            />
+          </div>
+          {errors.username && <span style={{ color: '#c2182c', fontSize: '0.78rem', marginTop: '2px', fontWeight: '500' }}>{errors.username}</span>}
+        </div>
+
+        <div className="form-group">
+          <span className="form-label">Email tài khoản (không bắt buộc)</span>
           <div className="input-wrapper">
             <span className="input-icon-left"><MailIcon /></span>
             <input 
@@ -153,11 +198,15 @@ function Register({ setView, showToast }) {
               className="form-input" 
               placeholder="example@gmail.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (errors.email) setErrors(prev => ({ ...prev, email: null }));
+              }}
+              style={errors.email ? { border: '1px solid #c2182c', backgroundColor: '#fff5f5' } : {}}
               disabled={loading}
             />
           </div>
+          {errors.email && <span style={{ color: '#c2182c', fontSize: '0.78rem', marginTop: '2px', fontWeight: '500' }}>{errors.email}</span>}
         </div>
 
         <div className="form-group">
@@ -169,7 +218,11 @@ function Register({ setView, showToast }) {
               className="form-input" 
               placeholder="••••••••"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (errors.password) setErrors(prev => ({ ...prev, password: null }));
+              }}
+              style={errors.password ? { border: '1px solid #c2182c', backgroundColor: '#fff5f5' } : {}}
               required
               disabled={loading}
             />
@@ -182,6 +235,7 @@ function Register({ setView, showToast }) {
               <EyeIcon visible={showPassword} />
             </button>
           </div>
+          {errors.password && <span style={{ color: '#c2182c', fontSize: '0.78rem', marginTop: '2px', fontWeight: '500' }}>{errors.password}</span>}
         </div>
 
         <button type="submit" className="submit-btn" style={{ marginTop: '5px', marginBottom: '20px' }} disabled={loading}>

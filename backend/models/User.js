@@ -1,10 +1,15 @@
 const mongoose = require('mongoose');
 
 const UserSchema = new mongoose.Schema({
+  username: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
   email: {
     type: String,
-    required: true,
-    unique: true
+    unique: true,
+    sparse: true
   },
   password: {
     type: String,
@@ -43,4 +48,11 @@ const UserSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-module.exports = mongoose.model('User', UserSchema);
+const UserModel = mongoose.model('User', UserSchema);
+
+// Migrate index: drop old email index if Schema was compiled with required
+UserModel.collection.dropIndex('email_1').catch((err) => {
+  // Ignore error if index doesn't exist
+});
+
+module.exports = UserModel;

@@ -1,10 +1,15 @@
 const mongoose = require('mongoose');
 
 const UserSchema = new mongoose.Schema({
+  username: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
   email: {
     type: String,
-    required: true,
-    unique: true
+    unique: true,
+    sparse: true
   },
   password: {
     type: String,
@@ -31,16 +36,23 @@ const UserSchema = new mongoose.Schema({
     type: [Number], // Store list of watched video IDs
     default: []
   },
-  progress: {
-    type: [{
-      videoId: { type: Number, required: true },
-      percentage: { type: Number, default: 0 },
-      score: { type: Number, default: 0 },
-      maxScore: { type: Number, default: 0 },
-      completed: { type: Boolean, default: false }
-    }],
-    default: []
+  videoProgress: {
+    type: Map, // videoId(string) -> phần trăm đã xem (0..100)
+    of: Number,
+    default: {}
+  },
+  videoScores: {
+    type: Map, // videoId(string) -> { raw, max } điểm đạt được (vd H5P)
+    of: mongoose.Schema.Types.Mixed,
+    default: {}
   }
 }, { timestamps: true });
 
-module.exports = mongoose.model('User', UserSchema);
+const UserModel = mongoose.model('User', UserSchema);
+
+// Migrate index: drop old email index if Schema was compiled with required
+UserModel.collection.dropIndex('email_1').catch((err) => {
+  // Ignore error if index doesn't exist
+});
+
+module.exports = UserModel;

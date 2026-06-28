@@ -16,7 +16,6 @@ app.use(express.json());
 // Routes layer connecting URL to MVC structure
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/videos', require('./routes/videoRoutes'));
-app.use('/api/homepage', require('./routes/homepageRoutes'));
 
 // App Metadata
 app.get('/api/metadata', (req, res) => {

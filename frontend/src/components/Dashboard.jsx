@@ -3,6 +3,7 @@ import axios from 'axios';
 import Classroom from './Classroom';
 import AdminPanel from './AdminPanel';
 import Forum from './CommentsPanel';
+
 import Announcements from './Announcements';
 import Quiz from './Quiz';
 import { API_BASE_URL } from '../config';
@@ -24,9 +25,11 @@ import {
   MapMarkerIcon
 } from './Icons';
 
+
 // Dữ liệu dự phòng dùng khi không gọi được API (mất mạng / backend chưa chạy).
 // Nguồn chính thức là MongoDB qua GET /api/videos — xem state `videos` bên dưới.
-const LOCAL_H5P_VIDEOS = [
+const FALLBACK_VIDEOS = [
+
   {
     id: 1,
     title: "Mô phỏng tình huống cháy chung cư mini và kỹ năng thoát nạn an toàn.",
@@ -34,44 +37,51 @@ const LOCAL_H5P_VIDEOS = [
     categoryKey: "co-ban",
     defaultPercentage: 0,
     isNew: true,
-    thumbnail: "/training.png",
-    videoUrl: "/h5p-player.html?id=bai_1",
-    description: `Bài học này tái hiện một tình huống cháy thực tế tại một chung cư mini, nơi tầng 1 chứa nhiều xe máy và xe điện đang sạc, chỉ có một cầu thang thoát nạn duy nhất và hệ thống báo cháy không hoạt động.
-Người xem sẽ vào vai Nam, một sinh viên sống ở tầng 3, và phải đưa ra những quyết định quan trọng trong từng giai đoạn của sự cố. Mỗi lựa chọn đều dẫn đến những hậu quả khác nhau, giúp người xem hiểu rõ các nguy cơ thường gặp và học được cách ứng phó đúng khi xảy ra hỏa hoạn.`
+    thumbnail: "Chaychungcu_Thumbnail.png",
+   
+
+    videoUrl: "https://fireguard.h5p.com/content/1292933141119135919/embed",
+    description: `Bài học này tái hiện một tình huống cháy thực tế tại một chung cư mini, nơi tầng 1 chứa nhiều xe máy và xe điện đang sạc, chỉ có một cầu thang thoát nạn duy nhất và hệ thống báo cháy không hoạt động. 
+Người xem sẽ vào vai Nam, một sinh viên sống ở tầng 3, và phải đưa ra những quyết định quan trọng trong từng giai đoạn của sự cố.Mỗi lựa chọn đều dẫn đến những hậu quả khác nhau, giúp người xem hiểu rõ các nguy cơ thường gặp và học được cách ứng phó đúng khi xảy ra hỏa hoạn. 
+Mục đích của bài học là nâng cao nhận thức và kỹ năng thoát nạn khi xảy ra cháy tại chung cư mini, ký túc xá và nhà trọ nhiều tầng.`
   },
   {
     id: 2,
-    title: "Tình huống cháy trong nhà",
-    category: "Cơ bản",
-    categoryKey: "co-ban",
+    title: "Thoát hiểm giữa đêm đông: Sinh tồn trong vụ cháy phòng trọ",
+    category: "Thoát hiểm",
+    categoryKey: "thoat-hiem",
+    duration: "",
+    views: "856 lượt xem • 5 ngày trước",
     defaultPercentage: 0,
     isNew: false,
-    thumbnail: "/training.png",
-    videoUrl: "/h5p-player.html?id=bai_2",
-    description: `Kỹ năng thoát hiểm và sinh tồn khi có cháy lớn xảy ra trong không gian nhà riêng khép kín.`
+    thumbnail: "Chaybinhnonglanh_Thumbnail.png",
+
+
+    videoUrl: "https://fireguard.h5p.com/content/1292933146469393139/embed",
+    description: `Giữa đêm đông Hà Nội dưới 15°C, Nam (25 tuổi, kỹ sư phần mềm) đang nằm lướt điện thoại trong phòng trọ 20m² sau ca làm việc mệt mỏi. 
+    Bất ngờ, chiếc bình nóng lạnh cũ trong nhà tắm phát nổ lớn, bắn ra tia lửa điện và bốc cháy dữ dội. 
+    Vỏ nhựa và rèm nylon nóng chảy khiến khói độc đen kịt nhanh chóng bao trùm trần nhà. 
+    Bị sặc khói và cay mắt, Nam đối mặt với quyết định sinh tử trong tích tắc khi căn phòng dần mất đi dưỡng khí.`
   },
   {
     id: 3,
-    title: "Thoát Hiểm Trong Chung Cư Mini",
+    title: "Sơ cứu bỏng nhiệt và ngạt khói tại chỗ trong 5 phút đầu",
     category: "Thoát hiểm",
     categoryKey: "thoat-hiem",
+    duration: "",
+    views: "2.4k lượt xem • 1 tuần trước",
     defaultPercentage: 0,
     isNew: false,
-    thumbnail: "/training.png",
-    videoUrl: "/h5p-player.html?id=bai_3",
-    description: `Vào vai cư dân chung cư mini để xử lý các quyết định thoát hiểm khẩn cấp giữa đêm.`
+
+
+    thumbnail: "Chayamdunnuoc_Thumbnail.png",
+
+
+    videoUrl: "https://fireguard.h5p.com/content/1292933229411731469/embed",
+    description: `Nhận biết sớm cháy điện, tránh sai lầm hắt nước gây giật, lập tức ngắt cầu dao tổng, dùng bình chữa cháy chuyên dụng (khí CO2 hoặc bột) và nhanh chóng thoát hiểm để bảo vệ tính mạng`
   },
-  {
-    id: 4,
-    title: "Cháy ấm đun nước",
-    category: "Cơ bản",
-    categoryKey: "co-ban",
-    defaultPercentage: 0,
-    isNew: true,
-    thumbnail: "/training.png",
-    videoUrl: "/h5p-player.html?id=bai_4",
-    description: `Nhận biết và xử lý các sự cố cháy điện do thiết bị đun nước gia đình.`
-  }
+
+
 ];
 
 const INITIAL_NOTIFICATIONS = [
@@ -91,7 +101,7 @@ const INITIAL_NOTIFICATIONS = [
     desc: 'Học viên đang trao đổi về kỹ năng dùng bình CO2.',
     time: '22 phút trước',
     isRead: false,
-    target: 'forum',
+    target: 'discussion',
   },
   {
     id: 'n3',
@@ -100,7 +110,7 @@ const INITIAL_NOTIFICATIONS = [
     desc: 'Cố lên! Hoàn thành 4 bài còn lại để nhận chứng chỉ.',
     time: '1 giờ trước',
     isRead: false,
-    target: 'profile',
+    target: 'settings',
   },
   {
     id: 'n4',
@@ -109,21 +119,150 @@ const INITIAL_NOTIFICATIONS = [
     desc: 'Chúng tôi vừa cập nhật điều khoản sử dụng FIREGUARD.',
     time: 'Hôm qua',
     isRead: true,
-    target: null,
+    target: 'announcements',
   },
 ];
 
-function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) {
-  const [dashboardView, setDashboardView] = useState('discussion'); // 'announcements' | 'discussion' | 'videos' | 'quiz' | 'profile' | 'admin' | 'settings'
+// Định dạng thời gian tương đối theo mốc thật (createdAt) — F5 vẫn đúng
+function formatTimeAgo(ts) {
+  if (!ts) return '';
+  const d = ts instanceof Date ? ts : new Date(ts);
+  const ms = d.getTime();
+  if (isNaN(ms)) return '';
+  const diff = Date.now() - ms;
+  const sec = Math.floor(diff / 1000);
+  if (sec < 60) return 'Vừa xong';
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min} phút trước`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr} giờ trước`;
+  const day = Math.floor(hr / 24);
+  if (day < 7) return `${day} ngày trước`;
+  return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+// Mốc thời gian ổn định cho thông báo không có createdAt thật (nhớ lần đầu xuất hiện)
+function getStableTs(id) {
+  let map = {};
+  try { map = JSON.parse(localStorage.getItem('notifSeen') || '{}'); } catch (e) { map = {}; }
+  if (!map[id]) {
+    map[id] = Date.now();
+    try { localStorage.setItem('notifSeen', JSON.stringify(map)); } catch (e) { /* ignore */ }
+  }
+  return map[id];
+}
+
+// Khung hình trích từ chính video của từng khóa (Cloudinary so_15) — map theo tiêu đề.
+// Nguồn xác định theo URL video gốc H5P do người dùng cung cấp (đối chiếu tên file nguồn).
+const COURSE_FRAMES = {
+  chungcu:   'https://res.cloudinary.com/dzasig10l/video/upload/so_15,w_640,h_360,c_fill,q_auto/v1782235650/sources-6a1a9d24d11b2_afpqin.jpg',
+  trongnha:  'https://res.cloudinary.com/dzasig10l/video/upload/so_15,w_640,h_360,c_fill,q_auto/v1782234076/sources-6a1af9db9c0aa_ls6wjr.jpg',
+  mini:      'https://res.cloudinary.com/dzasig10l/video/upload/so_15,w_640,h_360,c_fill,q_auto/v1782231998/sources-6a3533e05595d_mr24j4.jpg',
+  amdunnuoc: 'https://res.cloudinary.com/dzasig10l/video/upload/so_15,w_640,h_360,c_fill,q_auto/v1782235450/files-6a353f5a413e0_cwbln4.jpg',
+};
+const FRAME_FALLBACK = [COURSE_FRAMES.chungcu, COURSE_FRAMES.trongnha, COURSE_FRAMES.mini, COURSE_FRAMES.amdunnuoc];
+// Ảnh cố định theo id bài học: 1=chung cư mini, 2=bình nóng lạnh, 3=chung cư, 4=ấm đun nước
+const FRAME_BY_ID = {
+  1: COURSE_FRAMES.chungcu,
+  2: COURSE_FRAMES.trongnha,
+  3: COURSE_FRAMES.mini,
+  4: COURSE_FRAMES.amdunnuoc,
+};
+// Đồng bộ 4 bài học theo VỊ TRÍ thẻ (ảnh 1..4): tên + link H5P mới. Áp bất kể id/dữ liệu DB.
+const NEW_VIDEOS = [
+  { title: 'Cháy chung cư mini',  videoUrl: 'https://fireguard.h5p.com/content/1292933141119135919/embed' }, // ảnh 1
+  { title: 'Cháy bình nóng lạnh', videoUrl: 'https://fireguard.h5p.com/content/1292933146469393139/embed' }, // ảnh 2
+  { title: 'Cháy chung cư',       videoUrl: 'https://fireguard.h5p.com/content/1292933165577314319/embed' }, // ảnh 3
+  { title: 'Cháy ấm đun nước',    videoUrl: 'https://fireguard.h5p.com/content/1292933229411731469/embed' }, // ảnh 4
+];
+const applyVideoUrls = (list) => (Array.isArray(list) ? list.map((v, i) => (NEW_VIDEOS[i] ? { ...v, title: NEW_VIDEOS[i].title, videoUrl: NEW_VIDEOS[i].videoUrl } : v)) : list);
+
+function getCourseThumb(video, idx) {
+  // Ảnh theo đúng vị trí thẻ (ảnh 1..4)
+  return FRAME_FALLBACK[idx % FRAME_FALLBACK.length];
+}
+
+function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clearPendingVideo, darkMode, toggleDarkMode, initialView = 'discussion', onChangePassword }) {
+  const [dashboardView, setDashboardView] = useState(() => localStorage.getItem('lastDashboardView') || initialView);
+  // Lưu tab hiện tại để F5 không mất trang
+  useEffect(() => { localStorage.setItem('lastDashboardView', dashboardView); }, [dashboardView]); // 'announcements' | 'discussion' | 'videos' | 'quiz' | 'profile' | 'admin' | 'settings'
+
+  // Safeguard: Redirect student if they are in admin view
+  useEffect(() => {
+    const isUserAdmin = user?.role === 'admin' || user?.email === 'admin@fireguard.com' || dbUser?.role === 'admin';
+    if (dashboardView === 'admin' && !isUserAdmin) {
+      setDashboardView('discussion');
+    }
+  }, [user, dbUser, dashboardView]);
+
   // Sidebar expandable groups
   const [forumGroupOpen, setForumGroupOpen] = useState(true);
   const [learnGroupOpen, setLearnGroupOpen] = useState(true);
+
   const [activeTab, setActiveTab] = useState('Tất cả');
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Notifications
-  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
+  // Bell hiển thị dữ liệu thật: announcement (admin đăng) + nhắc riêng từ DB + bài học mới
+  const [notifications, setNotifications] = useState([]);
+
+  // Thông báo gửi riêng cho học viên này từ DB (vd admin nhắc học)
+  const [dbNotifs, setDbNotifs] = useState([]);
+
+  // Thông báo chung do admin đăng (Announcement) -> hiện cho mọi học viên ở chuông
+  const [annNotifs, setAnnNotifs] = useState([]);
+
+  // Lưu danh sách thông báo đã đọc vào localStorage mỗi khi thay đổi
+  useEffect(() => {
+    // Cộng dồn (không ghi đè) để không mất trạng thái đã đọc khi danh sách tạm thời thiếu mục
+    let prev = [];
+    try { prev = JSON.parse(localStorage.getItem('readNotifs') || '[]'); } catch (e) { prev = []; }
+    const cur = notifications.filter((n) => n.isRead).map((n) => n.id);
+    const union = Array.from(new Set([...prev, ...cur]));
+    try { localStorage.setItem('readNotifs', JSON.stringify(union)); } catch (e) { /* ignore */ }
+  }, [notifications]);
+
+  // Nạp thông báo riêng của học viên từ DB
+  useEffect(() => {
+    const uid = user?.id || user?._id;
+    if (!uid) return;
+    axios.get(`${API_BASE_URL}/api/auth/notifications/${uid}`)
+      .then((res) => {
+        if (res.data?.success) {
+          setDbNotifs((res.data.notifications || []).map((n) => ({
+            id: n._id,
+            icon: n.icon || '📣',
+            title: n.title,
+            desc: n.desc,
+            ts: n.createdAt ? new Date(n.createdAt).getTime() : getStableTs(n._id),
+            isRead: !!n.isRead,
+            target: null,
+          })));
+        }
+      })
+      .catch(() => { /* ignore */ });
+  }, [user]);
+
+  // Nạp announcement (admin đăng) -> hiện ở chuông cho mọi học viên, kèm thời gian thật
+  useEffect(() => {
+    axios.get(`${API_BASE_URL}/api/auth/announcements`)
+      .then((res) => {
+        if (res.data?.success) {
+          setAnnNotifs((res.data.announcements || []).map((a) => ({
+            id: `ann-${a._id}`,
+            icon: a.pinned ? '📌' : '📢',
+            title: a.title,
+            desc: a.content,
+            ts: a.createdAt ? new Date(a.createdAt).getTime() : getStableTs(`ann-${a._id}`),
+            isRead: false,
+            target: 'announcements',
+          })));
+        }
+      })
+      .catch(() => { /* ignore */ });
+  }, []);
+
   const [notifOpen, setNotifOpen] = useState(false);
   const notifPanelRef = useRef(null);
   const notifTriggerRef = useRef(null);
@@ -141,13 +280,62 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
   // Danh sách video lấy trực tiếp từ MongoDB (GET /api/videos).
   // Thêm/xóa video trong DB sẽ phản ánh ngay khi tải lại trang.
   const [videos, setVideos] = useState([]);
+
+  // Sinh thông báo 'bài học mới' động theo video có cờ isNew trong DB.
+  // Cái mới (id chưa từng đọc) sẽ hiện chưa đọc; cái đã đọc vẫn được nhớ.
+  useEffect(() => {
+    let readIds = [];
+    try { readIds = JSON.parse(localStorage.getItem('readNotifs') || '[]'); } catch (e) { readIds = []; }
+    const dynamicNew = (videos || [])
+      .filter((v) => v && v.isNew)
+      .map((v) => ({
+        id: `video-new-${v.id}`,
+        icon: '🔥',
+        title: `Bài học mới: ${v.title}`,
+        desc: 'Vừa được thêm vào kho khóa học. Mở xem ngay!',
+        ts: v.createdAt ? new Date(v.createdAt).getTime() : getStableTs(`video-new-${v.id}`),
+        isRead: false,
+        target: 'videos',
+      }));
+    const merged = [...annNotifs, ...dbNotifs, ...dynamicNew]
+      .map((n) => (readIds.includes(n.id) ? { ...n, isRead: true } : n))
+      .sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    setNotifications(merged);
+  }, [videos, dbNotifs, annNotifs]);
   const [videosLoading, setVideosLoading] = useState(true);
 
   useEffect(() => {
-    // Luôn sử dụng danh sách 4 bài học H5P cục bộ
-    setVideos(LOCAL_H5P_VIDEOS);
-    setVideosLoading(false);
+    let active = true;
+    axios.get(`${API_BASE_URL}/api/videos`)
+      .then((res) => {
+        if (!active) return;
+        if (res.data?.success && Array.isArray(res.data.videos) && res.data.videos.length) {
+          setVideos(applyVideoUrls(res.data.videos));
+        } else {
+          setVideos(FALLBACK_VIDEOS); // DB rỗng hoặc shape lạ -> dùng dự phòng
+        }
+      })
+      .catch(() => {
+        if (active) setVideos(FALLBACK_VIDEOS); // mất mạng / backend chưa chạy
+      })
+      .finally(() => {
+        if (active) setVideosLoading(false);
+      });
+    return () => { active = false; };
   }, []);
+
+  // Mở đúng bài học khi khách chọn 'Học ngay' ở trang chủ rồi đăng nhập
+  useEffect(() => {
+    if (!pendingVideoId || !videos.length) return;
+    const v = videos.find(
+      (x) => String(x.id) === String(pendingVideoId) || String(x._id) === String(pendingVideoId)
+    );
+    if (v) {
+      setDashboardView('videos');
+      setActiveClassroomVideo(v);
+    }
+    if (clearPendingVideo) clearPendingVideo();
+  }, [pendingVideoId, videos]);
 
   // Lock body scroll when sidebar drawer is open on mobile
   useEffect(() => {
@@ -177,15 +365,9 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
       prev.map((it) => (it.id === n.id ? { ...it, isRead: true } : it))
     );
     setNotifOpen(false);
-    // route to target view if any
-    if (n.target === 'forum') {
-      setDashboardView('discussion');
-      setActiveClassroomVideo(null);
-    } else if (n.target === 'videos') {
-      setDashboardView('videos');
-      setActiveClassroomVideo(null);
-    } else if (n.target === 'profile') {
-      setDashboardView('settings');
+    // Điều hướng tới đúng trang mà thông báo trỏ tới
+    if (n.target) {
+      setDashboardView(n.target);
       setActiveClassroomVideo(null);
     }
     closeSidebar();
@@ -224,7 +406,12 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
 
   // Core array representing watched video IDs from live database
   const [watchedIds, setWatchedIds] = useState([]);
-  const [videoProgressList, setVideoProgressList] = useState([]);
+
+  // Tiến độ xem từng video (videoId -> %), lấy thật từ DB
+  const [progressMap, setProgressMap] = useState({});
+  const progressSaveRef = useRef({});
+  // Điểm đạt được từng video (videoId -> {raw,max}), vd điểm H5P
+  const [scoreMap, setScoreMap] = useState({});
 
   // Fetch the latest profile data from Mongoose database on mount or when user changes
   useEffect(() => {
@@ -238,14 +425,14 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
         if (response.data.success) {
           setDbUser(response.data.user);
           setWatchedIds(response.data.user.watchedVideos || []);
-          setVideoProgressList(response.data.user.progress || []);
+          setProgressMap(response.data.user.videoProgress || {});
+          setScoreMap(response.data.user.videoScores || {});
         }
       } catch (err) {
         console.error("Lỗi đồng bộ dữ liệu MongoDB:", err);
         // Fallback to local storage state if connection offline
         setDbUser(user);
         setWatchedIds(user?.watchedVideos || []);
-        setVideoProgressList([]);
       } finally {
         setFetching(false);
       }
@@ -263,8 +450,9 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
           if (response.data.success) {
             setDbUser(response.data.user);
             setWatchedIds(response.data.user.watchedVideos || []);
-            setVideoProgressList(response.data.user.progress || []);
-            showToast('Thông tin được đồng bộ trực tiếp từ Database!', 'success');
+            setProgressMap(response.data.user.videoProgress || {});
+            setScoreMap(response.data.user.videoScores || {});
+          setScoreMap(response.data.user.videoScores || {});
           }
         })
         .catch(err => console.log('Không thể làm mới dữ liệu từ Database'));
@@ -276,45 +464,68 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
     setActiveClassroomVideo(video);
   };
 
-  // Record a video as completed and updating progress in live MongoDB database
-  const handleUpdateProgress = async (videoId, percentage, score = 0, maxScore = 0) => {
+  // Record a video as completed in live MongoDB database after passing the quiz
+  const handleCompleteVideo = async (videoId) => {
     const activeId = user?.id || user?._id;
     if (!activeId) return;
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/auth/progress`, {
+      const response = await axios.post(`${API_BASE_URL}/api/auth/watch`, {
         userId: activeId,
-        videoId: Number(videoId),
-        percentage: Number(percentage),
-        score: Number(score),
-        maxScore: Number(maxScore)
+        videoId: Number(videoId)
       });
       if (response.data.success) {
-        // Sync local watched and progress lists
+        // Sync local watched list
         const updatedWatched = response.data.watchedVideos || [];
         setWatchedIds(updatedWatched);
-        const updatedProgress = response.data.progress || [];
-        setVideoProgressList(updatedProgress);
 
-        if (percentage >= 100) {
-          showToast(`Chúc mừng! Bạn đã hoàn thành phần học của bài học này!`, 'success');
-        }
+        // Show success toast on completion
+        showToast('Chúc mừng! Bạn đã hoàn thành bài học này!', 'success');
       }
     } catch (err) {
       console.error("Không thể lưu tiến trình học:", err);
     }
   };
 
-  const handleCompleteVideo = (videoId) => {
-    handleUpdateProgress(videoId, 100, 10, 10);
+  // Lưu tiến độ xem video THẬT (gọi realtime trong lúc xem), tự hoàn thành khi >= 90%
+  const handleVideoProgress = (videoId, percent) => {
+    const pct = Math.max(0, Math.min(100, Math.round(percent)));
+    setProgressMap((prev) => {
+      const cur = prev[String(videoId)] || 0;
+      if (pct <= cur) return prev;
+      return { ...prev, [String(videoId)]: pct };
+    });
+    const last = progressSaveRef.current[String(videoId)] || 0;
+    if (pct - last >= 5 || pct >= 90) {
+      progressSaveRef.current[String(videoId)] = pct;
+      const activeId = user?.id || user?._id;
+      if (!activeId) return;
+      axios.post(`${API_BASE_URL}/api/auth/progress`, { userId: activeId, videoId: Number(videoId), percent: pct })
+        .then((res) => {
+          if (res.data?.success && res.data.watchedVideos) setWatchedIds(res.data.watchedVideos);
+        })
+        .catch(() => { /* ignore */ });
+    }
+  };
+
+  // Lưu điểm đạt được của video (vd điểm H5P gửi qua xAPI)
+  const handleVideoScore = (videoId, raw, max) => {
+    if (!max || max <= 0) return;
+    setScoreMap((prev) => ({ ...prev, [String(videoId)]: { raw: Number(raw) || 0, max: Number(max) } }));
+    const activeId = user?.id || user?._id;
+    if (!activeId) return;
+    axios.post(`${API_BASE_URL}/api/auth/progress`, { userId: activeId, videoId: Number(videoId), scoreRaw: Number(raw) || 0, scoreMax: Number(max) })
+      .catch(() => { /* ignore */ });
   };
 
   const getFilteredVideos = () => {
+
     if (activeTab === 'Tất cả') return videos;
     if (activeTab === 'Cơ bản') return videos.filter(v => v.category === 'Cơ bản');
     if (activeTab === 'Chung cư/Nhà cao tầng') return videos.filter(v => v.category === 'Thoát hiểm');
     if (activeTab === 'Thoát hiểm khẩn cấp') return videos.filter(v => v.category === 'Thoát hiểm');
     return videos;
+
   };
 
   // Determine active profile parameters (Live DB user details takes priority)
@@ -326,9 +537,30 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
   const isAdmin = activeUser?.role === 'admin' || activeUser?.email === 'admin@fireguard.com';
   const roleName = isAdmin ? 'Quản trị viên FIREGUARD' : 'Học viên';
   const firstLetter = displayName.charAt(0).toUpperCase();
+  // Nhãn breadcrumb theo mục đang xem
+  const viewLabels = {
+    announcements: 'Thông báo',
+    discussion: 'Diễn đàn',
+    videos: 'Bài học',
+    quiz: 'Quiz',
+    profile: 'Hồ sơ',
+    admin: 'Quản trị',
+    settings: 'Cài đặt',
+  };
+  const currentCrumb = activeClassroomVideo
+    ? (activeClassroomVideo.title || 'Bài học')
+    : (viewLabels[dashboardView] || 'Trang');
+
 
   const handleSidebarAdminClick = () => {
     setDashboardView('admin');
+    closeSidebar();
+  };
+
+  // Ô hồ sơ ở chân sidebar -> mở trang Cài đặt (đã gộp thông tin học viên vào đây)
+  const handleSidebarProfileClick = () => {
+    setDashboardView('settings');
+    setActiveClassroomVideo(null);
     closeSidebar();
   };
 
@@ -338,6 +570,7 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
     setActiveClassroomVideo(null);
     closeSidebar();
   };
+
 
   // Clicking the brand/logo returns to the home view (Thảo luận)
   const handleGoHome = () => {
@@ -403,7 +636,7 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
         {/* Brand / Logo — click returns to home (Diễn đàn) */}
         <div
           className="sidebar-brand-box sidebar-brand-clickable"
-          onClick={handleGoHome}
+          onClick={() => { if (goHome) goHome(); closeSidebar(); }}
           role="button"
           tabIndex={0}
           title="Về trang chủ"
@@ -446,6 +679,7 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
         </div>
 
         <nav className="sidebar-menu">
+
           {/* GROUP: Diễn đàn */}
           <div className="sidebar-group">
             <div
@@ -461,13 +695,6 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
 
             {forumGroupOpen && (
               <div className="sidebar-subitems">
-                <div
-                  className={`sidebar-subitem ${dashboardView === 'announcements' ? 'active' : ''}`}
-                  onClick={() => goToView('announcements')}
-                >
-                  <span className="sidebar-subitem-icon">📢</span>
-                  Thông báo
-                </div>
                 <div
                   className={`sidebar-subitem ${dashboardView === 'discussion' ? 'active' : ''}`}
                   onClick={() => goToView('discussion')}
@@ -513,6 +740,7 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
             )}
           </div>
 
+
           {isAdmin && (
             <div
               className={`sidebar-item ${dashboardView === 'admin' ? 'active' : ''}`}
@@ -530,6 +758,23 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
           )}
 
           <div
+            className={`sidebar-item ${dashboardView === 'announcements' ? 'active' : ''}`}
+            onClick={() => goToView('announcements')}
+            role="button"
+            tabIndex={0}
+            style={{
+              borderLeft:
+                dashboardView === 'announcements'
+                  ? '3px solid var(--primary-red)'
+                  : '3px solid transparent'
+            }}
+          >
+            <NotifyBellIcon />
+            Thông báo
+          </div>
+
+          <div
+
             className={`sidebar-item ${dashboardView === 'settings' ? 'active' : ''}`}
             onClick={() => goToView('settings')}
             role="button"
@@ -546,6 +791,7 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
           </div>
 
           <div
+
             ref={contactTriggerRef}
             className={`sidebar-item ${contactOpen ? 'active' : ''}`}
             onClick={toggleContactPanel}
@@ -603,6 +849,21 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
         </nav>
 
         <div className="sidebar-footer">
+          <div
+            className={`sidebar-profile-row ${dashboardView === 'profile' ? 'active' : ''}`}
+            onClick={handleSidebarProfileClick}
+            role="button"
+            tabIndex={0}
+          >
+            <div className="sidebar-profile-avatar">
+              <span className="profile-widget-fallback">{firstLetter}</span>
+            </div>
+            <div className="sidebar-profile-text">
+              <span className="sidebar-profile-name">{displayName}</span>
+              <span className="sidebar-profile-role">{roleName}</span>
+            </div>
+          </div>
+
           <div className="sidebar-footer-link" onClick={handleLogout}>
             <LogOutIcon />
             Đăng xuất
@@ -620,10 +881,76 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
           >
             ☰
           </button>
+
+          {/* Chuông thông báo ở góc phải header */}
+          <div className="header-actions">
+            <div className="notif-wrap">
+              <button
+                ref={notifTriggerRef}
+                className="notif-bell-btn"
+                onClick={toggleNotifPanel}
+                aria-label="Thông báo"
+                title="Thông báo"
+              >
+                <NotifyBellIcon />
+                {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
+              </button>
+
+              {notifOpen && (
+                <div ref={notifPanelRef} className="notif-panel" role="dialog" aria-label="Thông báo">
+                  <div className="notif-panel-head">
+                    <span className="notif-panel-title">Thông báo</span>
+                    {unreadCount > 0 && (
+                      <button className="notif-markall" onClick={handleMarkAllRead}>
+                        Đánh dấu đã đọc
+                      </button>
+                    )}
+                  </div>
+                  <div className="notif-list">
+                    {notifications.length === 0 ? (
+                      <p className="notif-empty">Chưa có thông báo nào.</p>
+                    ) : (
+                      notifications.map((n) => (
+                        <button
+                          key={n.id}
+                          className={`notif-item ${n.isRead ? '' : 'unread'}`}
+                          onClick={() => handleNotifClick(n)}
+                        >
+                          <span className="notif-item-icon">{n.icon}</span>
+                          <span className="notif-item-body">
+                            <span className="notif-item-title">{n.title}</span>
+                            <span className="notif-item-desc">{n.desc}</span>
+                            <span className="notif-item-time">{formatTimeAgo(n.ts)}</span>
+                          </span>
+                          {!n.isRead && <span className="notif-dot" />}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                  <button
+                    className="notif-seeall"
+                    onClick={() => { setNotifOpen(false); goToView('announcements'); }}
+                  >
+                    Xem tất cả thông báo →
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </header>
 
+        {/* Breadcrumb: Trang chủ > mục hiện tại */}
+        <nav className="dash-breadcrumb" aria-label="breadcrumb">
+          <button type="button" className="dash-bc-home" onClick={() => { if (goHome) goHome(); }}>
+            <span className="dash-bc-ic">🏠</span>
+            <span>Trang chủ</span>
+          </button>
+          <span className="dash-bc-sep">›</span>
+          <span className="dash-bc-current">{currentCrumb}</span>
+        </nav>
+
         {dashboardView === 'announcements' ? (
-          <Announcements user={activeUser} showToast={showToast} />
+          <Announcements user={activeUser} showToast={showToast} sideNotifs={notifications.filter((n) => !String(n.id).startsWith('ann-'))} />
         ) : dashboardView === 'discussion' ? (
           <Forum user={activeUser} showToast={showToast} />
         ) : dashboardView === 'quiz' ? (
@@ -639,23 +966,12 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
             <Classroom
               video={activeClassroomVideo}
               user={activeUser}
-              onBack={() => {
-                setActiveClassroomVideo(null);
-                // Auto sync user data when backing out
-                const activeId = activeUser?.id || activeUser?._id;
-                if (activeId) {
-                  axios.get(`${API_BASE_URL}/api/auth/profile/${activeId}`)
-                    .then(response => {
-                      if (response.data.success) {
-                        setDbUser(response.data.user);
-                        setWatchedIds(response.data.user.watchedVideos || []);
-                        setVideoProgressList(response.data.user.progress || []);
-                      }
-                    });
-                }
-              }}
+              onBack={() => setActiveClassroomVideo(null)}
               showToast={showToast}
-              onComplete={handleUpdateProgress}
+              onComplete={handleCompleteVideo}
+              onProgress={handleVideoProgress}
+              onScore={handleVideoScore}
+              initialPercent={Math.round(progressMap[String(activeClassroomVideo.id)] || 0)}
             />
           ) : (
             <div className="dashboard-body">
@@ -684,18 +1000,18 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
                 <p className="grid-heading-desc">Chưa có bài học nào trong cơ sở dữ liệu.</p>
               ) : (
               <div className="video-catalog-grid">
-                {getFilteredVideos().map((video) => {
-                  const userProg = videoProgressList.find(p => p.videoId === video.id);
-                  const dbPercentage = userProg ? userProg.percentage : 0;
-                  const isWatched = watchedIds.includes(video.id) || (userProg ? userProg.completed : false);
-                  const percentShow = isWatched ? 100 : dbPercentage;
-                  const progressText = isWatched ? 'Đã hoàn thành' : (percentShow > 0 ? `Đã xem ${percentShow}%` : 'Chưa bắt đầu');
+                {getFilteredVideos().map((video, idx) => {
+                  const isWatched = watchedIds.includes(video.id);
+                  // Tiến độ THẬT từ DB (không đánh dấu giả)
+                  const pct = isWatched ? 100 : Math.round(progressMap[String(video.id)] || 0);
+                  const progressText = isWatched ? 'Đã hoàn thành' : (pct > 0 ? `Đã xem ${pct}%` : 'Chưa bắt đầu');
+                  const vscore = scoreMap[String(video.id)];
 
                   return (
                     <div key={video.id} className="video-catalog-card">
                       <div
                         className="thumbnail-box"
-                        style={{ backgroundImage: `url('${video.thumbnail}')` }}
+                        style={{ backgroundImage: `url('${getCourseThumb(video, idx)}')` }}
                       >
                         {video.isNew && <span className="thumbnail-badge-status">Mới</span>}
                         <span className="thumbnail-duration-overlay">{video.duration}</span>
@@ -710,23 +1026,37 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
                           <span className={`video-category-tag ${video.categoryKey}`}>
                             {video.category}
                           </span>
+                          {/* <span className="video-stats">{video.views}</span> */}
                         </div>
 
                         <h3 className="video-card-title">{video.title}</h3>
 
                         <div className="progress-module">
+                          <div className="progress-meta-row">
+                            <span className="progress-text">{progressText}</span>
+                            <span className="progress-percentage" style={{ color: isWatched ? '#10b981' : '' }}>{pct}%</span>
+                          </div>
                           <div className="progress-track-bar">
                             <div
                               className="progress-fill-active"
-                              style={{
-                                width: `${percentShow}%`,
-                                backgroundColor: isWatched ? '#10b981' : '#c2182c' // Green if 100% completed!
-                              }}
-                            ></div>
+                              style={{ width: `${pct}%`, backgroundColor: isWatched ? '#10b981' : '' }}
+                            />
                           </div>
 
+                          {isWatched ? (
+                            <div className="course-status-badge done">✓ Đã hoàn thành</div>
+                          ) : (
+                            <div className="course-status-badge todo">● Chưa hoàn thành</div>
+                          )}
+
+                          {vscore && vscore.max > 0 && (
+                            <div className="course-score-row">
+                              🏆 Đạt {vscore.raw}/{vscore.max} điểm
+                            </div>
+                          )}
+
                           <button
-                            className={`watch-action-button ${percentShow === 0 ? 'not-started' : ''}`}
+                            className={`watch-action-button ${!isWatched ? 'not-started' : ''}`}
                             onClick={() => handleWatchVideo(video)}
                             style={{
                               borderColor: isWatched ? '#10b981' : '',
@@ -734,24 +1064,8 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
                               backgroundColor: isWatched ? '#ecfdf5' : ''
                             }}
                           >
-                            {isWatched ? '✓ Xem lại bài học' : (percentShow > 0 ? 'Tiếp tục xem' : 'Bắt đầu học')}
+                            {isWatched ? '✓ Xem lại bài học' : 'Bắt đầu học'}
                           </button>
-
-                          {isWatched && userProg && userProg.maxScore > 0 && (
-                            <div className="video-card-score" style={{
-                              fontSize: '0.78rem',
-                              fontWeight: '700',
-                              color: '#10b981',
-                              marginTop: '8px',
-                              textAlign: 'center',
-                              backgroundColor: '#ecfdf5',
-                              padding: '4px 8px',
-                              borderRadius: '6px',
-                              border: '1px dashed #a7f3d0'
-                            }}>
-                              🏆 Điểm H5P: {userProg.score} / {userProg.maxScore}
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -763,7 +1077,7 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
             </div>
           )
         ) : dashboardView === 'admin' ? (
-          <AdminPanel showToast={showToast} />
+          <AdminPanel user={activeUser} showToast={showToast} />
         ) : (
           /* SETTINGS PAGE — dark mode + student info in one place (also the default fallback / old profile view) */
           <div className="dashboard-body settings-page">
@@ -842,6 +1156,9 @@ function Dashboard({ user, handleLogout, showToast, darkMode, toggleDarkMode }) 
                 </div>
               </div>
 
+              <button type="button" className="settings-changepw-btn" onClick={onChangePassword}>
+                🔑 Đổi mật khẩu
+              </button>
               <button className="logout-btn settings-logout-btn" onClick={handleLogout}>
                 Đăng xuất tài khoản
               </button>

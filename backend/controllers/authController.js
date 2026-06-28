@@ -1,21 +1,27 @@
 const User = require('../models/User');
 const Comment = require('../models/Comment');
+const Notification = require('../models/Notification');
 const ForumPost = require('../models/ForumPost');
 const Announcement = require('../models/Announcement');
+const Video = require('../models/Video');
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
 // @access  Public
 exports.registerUser = async (req, res) => {
   try {
-    const { email, password, fullName, phone, address } = req.body;
-    
+    const { email, username, password, fullName, phone, address } = req.body;
+
     // 1. Mandatory base empty validation
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: "Vui lòng điền đầy đủ Email và Mật khẩu!" });
+    if (!username || !username.trim()) {
+      return res.status(400).json({ success: false, message: "Vui lòng nhập Tên đăng nhập (Username)!" });
+    }
+    if (!password) {
+      return res.status(400).json({ success: false, message: "Vui lòng nhập Mật khẩu!" });
     }
 
-    const emailTrim = email.trim();
+    const usernameTrim = username.trim().toLowerCase();
+    const emailTrim = email ? email.trim() : '';
     const fullNameTrim = (fullName || '').trim();
     const phoneTrim = (phone || '').trim();
     const addressTrim = (address || '').trim();
@@ -45,10 +51,12 @@ exports.registerUser = async (req, res) => {
       return res.status(400).json({ success: false, message: "Địa chỉ liên hệ phải từ 5 ký tự trở lên!" });
     }
 
-    // 5. Email format check
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(emailTrim)) {
-      return res.status(400).json({ success: false, message: "Email không đúng cấu trúc hợp lệ!" });
+    // 5. Email format check (only if email is provided)
+    if (emailTrim) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailTrim)) {
+        return res.status(400).json({ success: false, message: "Email không đúng cấu trúc hợp lệ!" });
+      }
     }
 
     // 6. Password complexity check
@@ -56,38 +64,50 @@ exports.registerUser = async (req, res) => {
       return res.status(400).json({ success: false, message: "Mật khẩu phải dài tối thiểu từ 6 ký tự!" });
     }
 
-    const existingUser = await User.findOne({ email: emailTrim });
+    // Check if username or email already exists
+    const queryConditions = [{ username: usernameTrim }];
+    if (emailTrim) {
+      queryConditions.push({ email: emailTrim });
+    }
+    const existingUser = await User.findOne({  $or: queryConditions });
+
     if (existingUser) {
-      return res.status(400).json({ success: false, message: "Email này đã được đăng ký!" });
+      if (existingUser.username === usernameTrim) {
+        return res.status(400).json({ success: false, message: "Tên đăng nhập này đã tồn tại!" });
+      }
+      if (emailTrim && existingUser.email === emailTrim) {
+        return res.status(400).json({ success: false, message: "Email này đã được đăng ký!" });
+      }
     }
 
-    // Allocate admin role automatically if registered with specific admin email
-    const assignedRole = emailTrim === 'admin@fireguard.com' ? 'admin' : 'student';
+    // Allocate admin role automatically if registered with specific admin email/username
+    const assignedRole = (emailTrim === 'admin@fireguard.com' || usernameTrim === 'admin') ? 'admin' : 'student';
 
-    const newUser = new User({ 
-      email: emailTrim, 
-      password, 
-      fullName: fullNameTrim, 
-      phone: phoneTrim, 
+    const newUser = new User({
+      username: usernameTrim,
+      email: emailTrim || undefined, // store as undefined if not provided so sparse unique works
+      password,
+      fullName: fullNameTrim,
+      phone: phoneTrim,
       address: addressTrim,
       role: assignedRole,
       watchedVideos: []
     });
     await newUser.save();
-    
-    res.status(201).json({ 
-      success: true, 
-      message: "Đăng ký tài khoản thành công!", 
-      user: { 
-        id: newUser._id, 
-        email: newUser.email,
+
+    res.status(201).json({
+      success: true,
+      message: "Đăng ký tài khoản thành công!",
+      user: {
+        id: newUser._id,
+        username: newUser.username,
+        email: newUser.email || '',
         fullName: newUser.fullName,
         phone: newUser.phone,
         address: newUser.address,
         role: newUser.role,
-        watchedVideos: [],
-        progress: []
-      } 
+        watchedVideos: []
+      }
     });
   } catch (error) {
     console.error("Lỗi đăng ký:", error);
@@ -100,34 +120,43 @@ exports.registerUser = async (req, res) => {
 // @access  Public
 exports.loginUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
-    
+    const { email, password } = req.body; // email could be username or email
+
     if (!email || !password) {
-      return res.status(400).json({ success: false, message: "Vui lòng nhập Email và Mật khẩu!" });
+      return res.status(400).json({ success: false, message: "Vui lòng nhập Tên đăng nhập/Email và Mật khẩu!" });
     }
 
-    const user = await User.findOne({ email });
+    const emailTrim = email.trim();
+    const user = await User.findOne({
+      $or: [
+        { email: emailTrim },
+        { username: emailTrim.toLowerCase() }
+      ]
+    });
+
     if (!user) {
-      return res.status(400).json({ success: false, message: "Email không tồn tại!" });
+      return res.status(400).json({ success: false, message: "Tài khoản không tồn tại!" });
     }
 
     if (user.password !== password) {
       return res.status(400).json({ success: false, message: "Mật khẩu không chính xác!" });
     }
 
-    res.status(200).json({ 
-      success: true, 
-      message: "Đăng nhập thành công!", 
-      user: { 
-        id: user._id, 
-        email: user.email,
+    res.status(200).json({
+      success: true,
+      message: "Đăng nhập thành công!",
+      user: {
+        id: user._id,
+        username: user.username || '',
+        email: user.email || '',
         fullName: user.fullName || '',
         phone: user.phone || '',
         address: user.address || '',
         role: user.role || (user.email === 'admin@fireguard.com' ? 'admin' : 'student'),
         watchedVideos: user.watchedVideos || [],
-        progress: user.progress || []
-      } 
+        videoProgress: user.videoProgress ? Object.fromEntries(user.videoProgress) : {},
+        videoScores: user.videoScores ? Object.fromEntries(user.videoScores) : {}
+      }
     });
   } catch (error) {
     console.error("Lỗi đăng nhập:", error);
@@ -144,18 +173,20 @@ exports.getUserProfile = async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, message: "Người dùng không tồn tại!" });
     }
-    
+
     res.status(200).json({
       success: true,
       user: {
         id: user._id,
-        email: user.email,
+        username: user.username || '',
+        email: user.email || '',
         fullName: user.fullName || '',
         phone: user.phone || '',
         address: user.address || '',
         role: user.role || (user.email === 'admin@fireguard.com' ? 'admin' : 'student'),
         watchedVideos: user.watchedVideos || [],
-        progress: user.progress || []
+        videoProgress: user.videoProgress ? Object.fromEntries(user.videoProgress) : {},
+        videoScores: user.videoScores ? Object.fromEntries(user.videoScores) : {}
       }
     });
   } catch (error) {
@@ -170,17 +201,19 @@ exports.getUserProfile = async (req, res) => {
 exports.watchVideo = async (req, res) => {
   try {
     const { userId, videoId } = req.body;
-    
+
     if (!userId || videoId === undefined) {
       return res.status(400).json({ success: false, message: "Thiếu dữ liệu Người dùng hoặc Video ID!" });
     }
 
     // Add videoId to user's watched list (using Mongo $addToSet to avoid duplicates)
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { $addToSet: { watchedVideos: Number(videoId) } },
-      { new: true }
-    );
+    const user = await User.findById(userId);
+    if (user) {
+      if (!user.watchedVideos.includes(Number(videoId))) user.watchedVideos.push(Number(videoId));
+      if (!user.videoProgress) user.videoProgress = new Map();
+      user.videoProgress.set(String(videoId), 100);
+      await user.save();
+    }
 
     if (!user) {
       return res.status(404).json({ success: false, message: "Người dùng không có thực!" });
@@ -189,7 +222,8 @@ exports.watchVideo = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Tiến trình học tập đã được lưu!",
-      watchedVideos: user.watchedVideos || []
+      watchedVideos: user.watchedVideos || [],
+      videoProgress: user.videoProgress ? Object.fromEntries(user.videoProgress) : {}
     });
   } catch (error) {
     console.error("Lỗi ghi nhận xem video:", error);
@@ -328,6 +362,51 @@ exports.createForumPost = async (req, res) => {
   }
 };
 
+// @desc    Tạo thông báo gửi tới 1 học viên (admin nhắc học)
+// @route   POST /api/auth/notifications
+// @access  Admin
+exports.createNotification = async (req, res) => {
+  try {
+    const { adminId, userId, title, desc, icon, type } = req.body;
+    if (!userId || !title) {
+      return res.status(400).json({ success: false, message: "Thiếu thông tin thông báo!" });
+    }
+    const requester = adminId ? await User.findById(adminId) : null;
+    const isAdmin = requester && (requester.role === 'admin' || requester.email === 'admin@fireguard.com');
+    if (!isAdmin) {
+      return res.status(403).json({ success: false, message: "Chỉ quản trị viên mới được gửi nhắc nhở!" });
+    }
+    const notif = new Notification({
+      userId: String(userId),
+      title,
+      desc: desc || '',
+      icon: icon || '🔔',
+      type: type || 'reminder',
+    });
+    await notif.save();
+    res.status(201).json({ success: true, message: "Đã gửi nhắc nhở tới học viên!", notification: notif });
+  } catch (error) {
+    console.error("Lỗi gửi thông báo:", error);
+    res.status(500).json({ success: false, message: "Không thể gửi thông báo!" });
+  }
+};
+
+// @desc    Lấy thông báo của 1 học viên
+// @route   GET /api/auth/notifications/:userId
+// @access  Public (theo userId)
+exports.getUserNotifications = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const items = await Notification.find({ userId: String(userId) })
+      .sort({ createdAt: -1 })
+      .limit(50);
+    res.status(200).json({ success: true, notifications: items });
+  } catch (error) {
+    console.error("Lỗi lấy thông báo:", error);
+    res.status(500).json({ success: false, message: "Không thể nạp thông báo!" });
+  }
+};
+
 // @desc    Get all announcements (pinned first, then newest)
 // @route   GET /api/auth/announcements
 // @access  Public (read-only for everyone)
@@ -388,15 +467,18 @@ exports.createAnnouncement = async (req, res) => {
 exports.getAdminStats = async (req, res) => {
   try {
     // 1. Fetch live student count
-    const allUsers = await User.find({}).sort({ createdAt: -1 });
+    const allUsers = await User.find({ role: 'student' }).sort({ createdAt: -1 });
     const students = allUsers.filter(u => u.email !== 'admin@fireguard.com' && u.role !== 'admin');
-    
+
     // 2. Fetch comments statistics
     let totalComments = await Comment.countDocuments({});
 
-    // 3. Map aggregates per video lessons (1 to 6)
+    // 3. Map aggregates per video lessons dynamically
+    const videos = await Video.find({}).sort({ id: 1 });
     const videoStats = [];
-    for (let vidId = 1; vidId <= 6; vidId++) {
+
+    for (const video of videos) {
+      const vidId = video.id;
       const watchedCount = allUsers.filter(u => u.watchedVideos && u.watchedVideos.includes(vidId)).length;
       let comments = await Comment.find({ videoId: vidId });
 
@@ -411,8 +493,8 @@ exports.getAdminStats = async (req, res) => {
             content: vidId === 1
               ? "Các câu hỏi tương tác hiện lên đúng lúc mình đang lơ là, giúp tập trung trở lại rất tốt. Cảm ơn giảng viên!"
               : vidId === 2
-              ? "Phần giải thích về cơ chế hoạt động của thang thoát hiểm rất chi tiết. Mình đã tự tin hơn nếu lỡ gặp sự cố thật."
-              : "Nhận biết sớm cháy điện, tránh sai lầm hắt nước gây giật... Bài giảng thực sự rất hữu ích và trực quan!",
+                ? "Phần giải thích về cơ chế hoạt động của thang thoát hiểm rất chi tiết. Mình đã tự tin hơn nếu lỡ gặp sự cố thật."
+                : "Nhận biết sớm cháy điện, tránh sai lầm hắt nước gây giật... Bài giảng thực sự rất hữu ích và trực quan!",
             likes: vidId === 1 ? 12 : vidId === 2 ? 8 : 15,
             createdAt: new Date(Date.now() - vidId * 2 * 60 * 60 * 1000)
           },
@@ -424,8 +506,8 @@ exports.getAdminStats = async (req, res) => {
             content: vidId === 1
               ? "Video bài giảng rất bổ ích, hình ảnh trực quan sinh động."
               : vidId === 2
-              ? "Mình đã học được rất nhiều điều từ video này, cảm ơn đội ngũ sản xuất!"
-              : "Kỹ năng thực tế cao, ai cũng nên xem bài học này ít nhất một lần.",
+                ? "Mình đã học được rất nhiều điều từ video này, cảm ơn đội ngũ sản xuất!"
+                : "Kỹ năng thực tế cao, ai cũng nên xem bài học này ít nhất một lần.",
             likes: vidId === 1 ? 8 : vidId === 2 ? 5 : 9,
             createdAt: new Date(Date.now() - (vidId * 2 + 3) * 60 * 60 * 1000)
           }
@@ -440,6 +522,7 @@ exports.getAdminStats = async (req, res) => {
 
       videoStats.push({
         videoId: vidId,
+        title: video.title,
         watchedCount,
         commentsCount: comments.length,
         avgRating: avg
@@ -453,6 +536,7 @@ exports.getAdminStats = async (req, res) => {
       success: true,
       totalStudents: students.length,
       totalComments,
+      totalVideos: videos.length,
       videoStats,
       studentList: allUsers.map(u => ({
         id: u._id,
@@ -471,75 +555,160 @@ exports.getAdminStats = async (req, res) => {
   }
 };
 
-// @desc    Save/Update learning progress (percentage & xAPI score)
-// @route   POST /api/auth/progress
+// @desc    Change user password (plaintext scheme to match existing auth)
+// @route   POST /api/auth/change-password
 // @access  Public
-exports.saveProgress = async (req, res) => {
+exports.changePassword = async (req, res) => {
   try {
-    const { userId, videoId, percentage, score, maxScore } = req.body;
+    const { userId, currentPassword, newPassword } = req.body;
 
-    if (!userId || videoId === undefined || percentage === undefined) {
-      return res.status(400).json({ success: false, message: "Thiếu thông tin cập nhật tiến độ!" });
+    if (!userId || !currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: "Vui lòng điền đầy đủ thông tin!" });
     }
-
-    const vidId = Number(videoId);
-    const pct = Number(percentage);
-    const scr = Number(score || 0);
-    const maxScr = Number(maxScore || 0);
-    const isCompleted = pct >= 100;
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: "Mật khẩu mới phải dài tối thiểu 6 ký tự!" });
+    }
 
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ success: false, message: "Người dùng không tồn tại!" });
+      return res.status(404).json({ success: false, message: "Không tìm thấy tài khoản!" });
+    }
+    if (user.password !== currentPassword) {
+      return res.status(400).json({ success: false, message: "Mật khẩu hiện tại không chính xác!" });
+    }
+    if (currentPassword === newPassword) {
+      return res.status(400).json({ success: false, message: "Mật khẩu mới phải khác mật khẩu hiện tại!" });
     }
 
-    // Initialize collections if undefined
-    if (!user.progress) user.progress = [];
-    if (!user.watchedVideos) user.watchedVideos = [];
-
-    // Find existing progress record
-    const progIndex = user.progress.findIndex(p => p.videoId === vidId);
-
-    if (progIndex > -1) {
-      // Update existing record (only update if percentage is higher or if completed status changes)
-      if (pct > user.progress[progIndex].percentage) {
-        user.progress[progIndex].percentage = pct;
-      }
-      // Always store the highest score obtained
-      if (scr > user.progress[progIndex].score) {
-        user.progress[progIndex].score = scr;
-        user.progress[progIndex].maxScore = maxScr;
-      }
-      if (isCompleted) {
-        user.progress[progIndex].completed = true;
-      }
-    } else {
-      // Create new progress record
-      user.progress.push({
-        videoId: vidId,
-        percentage: pct,
-        score: scr,
-        maxScore: maxScr,
-        completed: isCompleted
-      });
-    }
-
-    // Sync to watchedVideos array for compatibility with legacy watched list checking
-    if (isCompleted && !user.watchedVideos.includes(vidId)) {
-      user.watchedVideos.push(vidId);
-    }
-
+    user.password = newPassword;
     await user.save();
 
-    res.status(200).json({
-      success: true,
-      message: "Cập nhật tiến trình học tập thành công!",
-      progress: user.progress || [],
-      watchedVideos: user.watchedVideos || []
-    });
+    res.status(200).json({ success: true, message: "Đổi mật khẩu thành công!" });
   } catch (error) {
-    console.error("Lỗi cập nhật tiến trình:", error);
-    res.status(500).json({ success: false, message: "Lỗi kết nối cơ sở dữ liệu khi cập nhật tiến trình!" });
+    console.error("Lỗi đổi mật khẩu:", error);
+    res.status(500).json({ success: false, message: "Có lỗi xảy ra từ máy chủ!" });
   }
 };
 
+// @desc    Thêm trả lời vào 1 bài diễn đàn (lưu DB để F5 không mất)
+// @route   POST /api/auth/forum/:postId/reply
+exports.addForumReply = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const { userId, userName, avatarLetter, role, content } = req.body;
+    if (!content || !content.trim()) {
+      return res.status(400).json({ success: false, message: "Nội dung trả lời không được để trống!" });
+    }
+    if (!userName || !userName.trim()) {
+      return res.status(400).json({ success: false, message: "Thiếu thông tin người dùng!" });
+    }
+    const post = await ForumPost.findById(postId);
+    if (!post) return res.status(404).json({ success: false, message: "Không tìm thấy bình luận!" });
+    post.replies.push({
+      userId: userId || null,
+      userName: userName.trim(),
+      avatarLetter: (avatarLetter || userName.trim().charAt(0)).toUpperCase(),
+      role: role || 'Học viên',
+      content: content.trim(),
+    });
+    await post.save();
+    res.status(201).json({ success: true, message: "Đã trả lời!", post });
+  } catch (error) {
+    console.error("Lỗi trả lời diễn đàn:", error);
+    res.status(500).json({ success: false, message: "Không thể gửi trả lời!" });
+  }
+};
+
+// @desc    Thu hồi (xóa) 1 bài diễn đàn — chủ bài hoặc admin
+// @route   DELETE /api/auth/forum/:postId
+exports.deleteForumPost = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const { userId } = req.body;
+    const post = await ForumPost.findById(postId);
+    if (!post) return res.status(404).json({ success: false, message: "Không tìm thấy bình luận!" });
+    const requester = userId ? await User.findById(userId) : null;
+    const isAdmin = requester && (requester.role === 'admin' || requester.email === 'admin@fireguard.com');
+    const isOwner = post.userId && userId && String(post.userId) === String(userId);
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ success: false, message: "Bạn không thể thu hồi bình luận này!" });
+    }
+    await post.deleteOne();
+    res.status(200).json({ success: true, message: "Đã thu hồi bình luận!" });
+  } catch (error) {
+    console.error("Lỗi thu hồi bình luận:", error);
+    res.status(500).json({ success: false, message: "Không thể thu hồi bình luận!" });
+  }
+};
+
+// @desc    Thu hồi (xóa) 1 trả lời — chủ trả lời hoặc admin
+// @route   DELETE /api/auth/forum/:postId/reply/:replyId
+exports.deleteForumReply = async (req, res) => {
+  try {
+    const { postId, replyId } = req.params;
+    const { userId } = req.body;
+    const post = await ForumPost.findById(postId);
+    if (!post) return res.status(404).json({ success: false, message: "Không tìm thấy bình luận!" });
+    const reply = post.replies.id(replyId);
+    if (!reply) return res.status(404).json({ success: false, message: "Không tìm thấy trả lời!" });
+    const requester = userId ? await User.findById(userId) : null;
+    const isAdmin = requester && (requester.role === 'admin' || requester.email === 'admin@fireguard.com');
+    const isOwner = reply.userId && userId && String(reply.userId) === String(userId);
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ success: false, message: "Bạn không thể thu hồi trả lời này!" });
+    }
+    post.replies.pull(replyId);
+    await post.save();
+    res.status(200).json({ success: true, message: "Đã thu hồi trả lời!", post });
+  } catch (error) {
+    console.error("Lỗi thu hồi trả lời:", error);
+    res.status(500).json({ success: false, message: "Không thể thu hồi trả lời!" });
+  }
+};
+
+// @desc    Lưu tiến độ xem video (phần trăm thật) + tự đánh dấu hoàn thành khi >= 90%
+// @route   POST /api/auth/progress
+exports.saveVideoProgress = async (req, res) => {
+  try {
+    const { userId, videoId, percent, scoreRaw, scoreMax } = req.body;
+    if (!userId || videoId === undefined) {
+      return res.status(400).json({ success: false, message: "Thiếu dữ liệu Người dùng hoặc Video!" });
+    }
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ success: false, message: "Người dùng không tồn tại!" });
+    if (!user.videoProgress) user.videoProgress = new Map();
+    if (!user.videoScores) user.videoScores = new Map();
+    const key = String(videoId);
+    let best = user.videoProgress.get(key) || 0;
+
+    // Cập nhật % đã xem (nếu có gửi)
+    if (percent !== undefined && percent !== null && !Number.isNaN(Number(percent))) {
+      const pct = Math.max(0, Math.min(100, Math.round(Number(percent))));
+      best = Math.max(best, pct);
+      user.videoProgress.set(key, best);
+    }
+
+    // Cập nhật điểm đạt được (nếu có gửi, vd từ H5P)
+    if (scoreMax !== undefined && Number(scoreMax) > 0) {
+      user.videoScores.set(key, { raw: Number(scoreRaw) || 0, max: Number(scoreMax) });
+    }
+
+    // Hoàn thành THẬT chỉ khi đã xem đủ 100% (không đánh dấu giả)
+    let completed = false;
+    if (best >= 100 && !user.watchedVideos.includes(Number(videoId))) {
+      user.watchedVideos.push(Number(videoId));
+      completed = true;
+    }
+    await user.save();
+    res.status(200).json({
+      success: true,
+      completed,
+      watchedVideos: user.watchedVideos || [],
+      videoProgress: Object.fromEntries(user.videoProgress),
+      videoScores: Object.fromEntries(user.videoScores),
+    });
+  } catch (error) {
+    console.error("Lỗi lưu tiến độ video:", error);
+    res.status(500).json({ success: false, message: "Không thể lưu tiến độ học!" });
+  }
+};

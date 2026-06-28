@@ -184,6 +184,11 @@ function getCourseThumb(video, idx) {
 
 function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clearPendingVideo, darkMode, toggleDarkMode, initialView = 'discussion', onChangePassword }) {
   const [dashboardView, setDashboardView] = useState(() => localStorage.getItem('lastDashboardView') || initialView);
+  
+  // Dynamic user details synced from Live Database
+  const [dbUser, setDbUser] = useState(null);
+  const [fetching, setFetching] = useState(false);
+
   // Lưu tab hiện tại để F5 không mất trang
   useEffect(() => { localStorage.setItem('lastDashboardView', dashboardView); }, [dashboardView]); // 'announcements' | 'discussion' | 'videos' | 'quiz' | 'profile' | 'admin' | 'settings'
 
@@ -400,9 +405,7 @@ function Dashboard({ user, handleLogout, showToast, goHome, pendingVideoId, clea
     setContactOpen((v) => !v);
   };
 
-  // Dynamic user details synced from Live Database
-  const [dbUser, setDbUser] = useState(null);
-  const [fetching, setFetching] = useState(false);
+
 
   // Core array representing watched video IDs from live database
   const [watchedIds, setWatchedIds] = useState([]);
